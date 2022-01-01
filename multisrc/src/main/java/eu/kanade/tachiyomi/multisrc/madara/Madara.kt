@@ -511,7 +511,7 @@ abstract class Madara(
             // Added "title" alternative
             chapter.date_upload = select("img").firstOrNull()?.attr("alt")?.let { parseRelativeDate(it) }
                 ?: select("span a").firstOrNull()?.attr("title")?.let { parseRelativeDate(it) }
-                    ?: parseChapterDate(select("span.chapter-release-date i").firstOrNull()?.text())
+                ?: parseChapterDate(select("span.chapter-release-date i").firstOrNull()?.text())
         }
 
         return chapter
@@ -597,7 +597,7 @@ abstract class Madara(
         return super.pageListRequest(chapter)
     }
 
-    open val pageListParseSelector = "div.page-break, li.blocks-gallery-item, .reading-content .text-left:not(:has(.blocks-gallery-item)) :has(>img)"
+    open val pageListParseSelector = "div.page-break, li.blocks-gallery-item, .reading-content .text-left:not(:has(.blocks-gallery-item)) img"
 
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
