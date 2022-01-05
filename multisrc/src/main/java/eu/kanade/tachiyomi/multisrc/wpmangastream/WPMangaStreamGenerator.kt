@@ -45,7 +45,7 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
         SingleLang("NoxSubs", "https://noxsubs.com", "tr"),
         SingleLang("The Apollo Team", "https://theapollo.team", "en"),
         SingleLang("Sekte Doujin", "https://sektedoujin.xyz", "id", isNsfw = true, overrideVersionCode = 2),
-        SingleLang("Phoenix Fansub", "https://phoenixfansub.com", "es", overrideVersionCode = 1),
+        SingleLang("Phoenix Fansub", "https://phoenixfansub.com", "es", overrideVersionCode = 2),
         SingleLang("Imagine Scan", "https://imaginescan.com.br", "pt-BR", isNsfw = true, overrideVersionCode = 1),
         SingleLang("Vapo Scan", "https://vaposcans.com", "pt-BR", overrideVersionCode = 3),
         SingleLang("Hakai Scan", "http://hakaiscan.xyz", "pt-BR", isNsfw = true),
@@ -53,7 +53,8 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
         SingleLang("Random Scans", "https://randomscans.xyz", "en"),
         SingleLang("Fênix Scanlator", "https://fenixscanlator.xyz", "pt-BR", className = "FenixScanlator", overrideVersionCode = 2),
         SingleLang("Phantom Scans", "https://phantomscans.com", "en", overrideVersionCode = 1),
-        SingleLang("Omega Scans", "https://omegascans.org", "en", isNsfw = true)
+        SingleLang("Omega Scans", "https://omegascans.org", "en", isNsfw = true),
+        SingleLang("Geass Hentai", "https://geassscan.xyz", "pt-BR", isNsfw = true, overrideVersionCode = 2)
     )
 
     companion object {
