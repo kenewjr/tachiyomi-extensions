@@ -61,21 +61,16 @@ class MangaDexHelper() {
     fun getLatestChapterOffset(page: Int): String = (MDConstants.latestChapterLimit * (page - 1)).toString()
 
     /**
-     * Remove bbcode tags as well as parses any html characters in description or
+     * Remove markdown links as well as parse any html characters in description or
      * chapter name to actual characters for example &hearts; will show ♥
      */
     fun cleanString(string: String): String {
-        val bbRegex =
-            """\[(\w+)[^]]*](.*?)\[/\1]""".toRegex()
-        var intermediate = string
-            .replace("[list]", "")
-            .replace("[/list]", "")
-            .replace("[*]", "")
-        // Recursively remove nested bbcode
-        while (bbRegex.containsMatchIn(intermediate)) {
-            intermediate = intermediate.replace(bbRegex, "$2")
-        }
-        return Parser.unescapeEntities(intermediate, false)
+        val unescapedString = Parser.unescapeEntities(string, false)
+
+        return unescapedString
+            .substringBefore("---")
+            .replace(markdownLinksRegex, "$1")
+            .trim()
     }
 
     /**
@@ -113,7 +108,7 @@ class MangaDexHelper() {
             .maxStale(Integer.MAX_VALUE, TimeUnit.SECONDS)
             .build()
 
-        private const val BILIBILI_URL = "bilibilicomics.com"
+        val markdownLinksRegex = "\\[([^]]+)\\]\\(([^)]+)\\)".toRegex()
     }
 
     // Check the token map to see if the md@home host is still valid
@@ -192,6 +187,7 @@ class MangaDexHelper() {
             val titleMap = mangaDataDto.attributes.title.asMdMap()
             val dirtyTitle = titleMap[lang]
                 ?: titleMap["en"]
+                ?: titleMap["ja-ro"]
                 ?: mangaDataDto.attributes.altTitles.jsonArray
                     .find {
                         val altTitle = it.asMdMap()
@@ -328,17 +324,7 @@ class MangaDexHelper() {
                 }
             }
 
-            if (!attr.externalUrl.isNullOrEmpty() && !attr.externalUrl.contains(BILIBILI_URL)) {
-                return null
-            }
-
-            // Bilibili special check. If it's a Bilibili chapter and the
-            // publishAt date is < now, it can be read on MD.
-            if (
-                !attr.externalUrl.isNullOrEmpty() &&
-                attr.externalUrl.contains(BILIBILI_URL) &&
-                parseDate(attr.publishAt) >= Date().time
-            ) {
+            if (attr.externalUrl != null && attr.pages == 0) {
                 return null
             }
 
@@ -360,4 +346,18 @@ class MangaDexHelper() {
             throw(e)
         }
     }
+
+    fun titleToSlug(title: String) = title.trim()
+        .toLowerCase(Locale.US)
+        .replace("[^a-z0-9]+".toRegex(), "-")
+        .replace("-+$".toRegex(), "")
+        .split("-")
+        .reduce { accumulator, element ->
+            val currentSlug = "$accumulator-$element"
+            if (currentSlug.length > 100) {
+                accumulator
+            } else {
+                currentSlug
+            }
+        }
 }
