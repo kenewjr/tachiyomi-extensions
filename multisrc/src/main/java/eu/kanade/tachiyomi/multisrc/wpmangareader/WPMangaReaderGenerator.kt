@@ -10,7 +10,7 @@ class WPMangaReaderGenerator : ThemeSourceGenerator {
 
     override val themeClass = "WPMangaReader"
 
-    override val baseVersionCode: Int = 11
+    override val baseVersionCode: Int = 12
 
     override val sources = listOf(
         MultiLang("Flame Scans", "https://flamescans.org", listOf("ar", "en"), className = "FlameScansFactory", pkgName = "flamescans", overrideVersionCode = 1),
@@ -48,7 +48,8 @@ class WPMangaReaderGenerator : ThemeSourceGenerator {
         SingleLang("YANP Fansub", "https://melhorcasal.com", "pt-BR", isNsfw = true, overrideVersionCode = 1),
         SingleLang("World Romance Translation", "https://wrt.my.id", "id", overrideVersionCode = 7),
         SingleLang("Ozul Scans", "https://ozulscans.com", "ar"),
-        SingleLang("Tsundoku Traduções", "https://tsundoku.com.br", "pt-BR", className = "TsundokuTraducoes", overrideVersionCode = 9)
+        SingleLang("Tsundoku Traduções", "https://tsundoku.com.br", "pt-BR", className = "TsundokuTraducoes", overrideVersionCode = 9),
+        SingleLang("Komik Lab", "https://komiklab.com", "id"),
     )
 
     companion object {

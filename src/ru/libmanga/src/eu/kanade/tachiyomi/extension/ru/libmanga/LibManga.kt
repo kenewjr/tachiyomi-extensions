@@ -31,9 +31,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.jsoup.nodes.Element
 import rx.Observable
 import uy.kohesive.injekt.Injekt
@@ -56,11 +59,23 @@ class LibManga : ConfigurableSource, HttpSource() {
     override val lang = "ru"
 
     override val supportsLatest = true
-
+    private fun imageContentTypeIntercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
+        val response = chain.proceed(originalRequest)
+        val urlRequest = originalRequest.url.toString()
+        val possibleType = urlRequest.substringAfterLast("/").split(".")
+        return if (!urlRequest.contains(baseUrl) and (possibleType.size == 2)) {
+            val realType = possibleType[1]
+            val image = response.body?.byteString()?.toResponseBody("image/$realType".toMediaType())
+            response.newBuilder().body(image).build()
+        } else
+            response
+    }
     override val client: OkHttpClient = network.cloudflareClient.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addNetworkInterceptor(RateLimitInterceptor(3))
+        .addInterceptor { imageContentTypeIntercept(it) }
         .build()
 
     private val baseOrig: String = "https://mangalib.me"
@@ -93,7 +108,7 @@ class LibManga : ConfigurableSource, HttpSource() {
 
         element.select("a").first().let { link ->
             manga.setUrlWithoutDomain(link.attr("href"))
-            manga.title = if (preferences.getString(LANGUAGE_PREF, "rus").equals("rus") || element.select(".updates__name_rus").isNullOrEmpty()) { element.select("h4").first().text() } else element.select(".updates__name_rus").first().text()
+            manga.title = if (isEng.equals("rus") || element.select(".updates__name_rus").isNullOrEmpty()) { element.select("h4").first().text() } else element.select(".updates__name_rus").first().text()
         }
         return manga
     }
@@ -148,16 +163,13 @@ class LibManga : ConfigurableSource, HttpSource() {
     private fun popularMangaFromElement(el: JsonElement) = SManga.create().apply {
         val slug = el.jsonObject["slug"]!!.jsonPrimitive.content
         val cover = el.jsonObject["cover"]!!.jsonPrimitive.content
-        title = if (preferences.getString(LANGUAGE_PREF, "rus").equals("rus")) el.jsonObject["rus_name"]!!.jsonPrimitive.content else el.jsonObject["name"]!!.jsonPrimitive.content
+        title = if (isEng.equals("rus")) el.jsonObject["rus_name"]!!.jsonPrimitive.content else el.jsonObject["name"]!!.jsonPrimitive.content
         thumbnail_url = "$COVER_URL/uploads/cover/$slug/cover/${cover}_250x350.jpg"
         url = "/$slug"
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
-
-        if (document.select("body[data-page=home]").isNotEmpty())
-            throw Exception("Can't open manga. Try log in via WebView")
 
         val manga = SManga.create()
 
@@ -189,12 +201,11 @@ class LibManga : ConfigurableSource, HttpSource() {
             else -> "☆☆☆☆☆"
         }
         val genres = document.select(".media-tags > a").map { it.text().capitalize() }
-        manga.title = if (preferences.getString(LANGUAGE_PREF, "rus").equals("rus")) document.select(".media-name__main").text() else document.select(".media-name__alt").text()
+        manga.title = if (isEng.equals("rus")) document.select(".media-name__main").text() else document.select(".media-name__alt").text()
         manga.thumbnail_url = document.select(".media-sidebar__cover > img").attr("src")
         manga.author = body.select("div.media-info-list__title:contains(Автор) + div").text()
         manga.artist = body.select("div.media-info-list__title:contains(Художник) + div").text()
-        manga.status = if (document.html().contains("Манга удалена по просьбе правообладателей") ||
-            document.html().contains("Данный тайтл лицензирован на территории РФ.")
+        manga.status = if (document.html().contains("paper empty section")
         ) {
             SManga.LICENSED
         } else
@@ -207,22 +218,21 @@ class LibManga : ConfigurableSource, HttpSource() {
                 "завершен" -> SManga.COMPLETED
                 else -> SManga.UNKNOWN
             }
-        manga.genre = genres.plusElement(category).plusElement(rawAgeStop).joinToString { it.trim() }
+        manga.genre = category + ", " + rawAgeStop + ", " + genres.joinToString { it.trim() }
         val altSelector = document.select(".media-info-list__item_alt-names .media-info-list__value div")
         var altName = ""
         if (altSelector.isNotEmpty()) {
             altName = "Альтернативные названия:\n" + altSelector.map { it.text() }.joinToString(" / ") + "\n\n"
         }
-        val mediaNameLanguage = if (preferences.getString(LANGUAGE_PREF, "rus").equals("rus")) document.select(".media-name__alt").text() else document.select(".media-name__main").text()
+        val mediaNameLanguage = if (isEng.equals("rus")) document.select(".media-name__alt").text() else document.select(".media-name__main").text()
         manga.description = mediaNameLanguage + "\n" + ratingStar + " " + ratingValue + " (голосов: " + ratingVotes + ")\n" + altName + document.select(".media-description__text").text()
         return manga
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        if (document.html().contains("Манга удалена по просьбе правообладателей") ||
-            document.html().contains("Данный тайтл лицензирован на территории РФ.")
-        ) {
+        val redirect = document.html()
+        if (redirect.contains("paper empty section")) {
             return emptyList()
         }
         val dataStr = document
@@ -355,8 +365,6 @@ class LibManga : ConfigurableSource, HttpSource() {
         if (!redirect.contains("window.__info")) {
             if (redirect.contains("hold-transition login-page")) {
                 throw Exception("Для просмотра 18+ контента необходима авторизация через WebView")
-            } else if (redirect.contains("header__logo")) {
-                throw Exception("Лицензировано - Главы не доступны")
             }
         }
 
@@ -801,6 +809,7 @@ class LibManga : ConfigurableSource, HttpSource() {
     }
 
     private var server: String? = preferences.getString(SERVER_PREF, null)
+    private var isEng: String? = preferences.getString(LANGUAGE_PREF, "eng")
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val serverPref = ListPreference(screen.context).apply {
             key = SERVER_PREF
