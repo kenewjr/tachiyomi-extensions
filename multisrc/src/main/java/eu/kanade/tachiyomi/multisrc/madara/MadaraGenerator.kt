@@ -10,13 +10,13 @@ class MadaraGenerator : ThemeSourceGenerator {
 
     override val themeClass = "Madara"
 
-    override val baseVersionCode: Int = 16
+    override val baseVersionCode: Int = 17
 
     override val sources = listOf(
         MultiLang("Leviatan Scans", "https://leviatanscans.com", listOf("en", "es"), className = "LeviatanScansFactory", overrideVersionCode = 9),
         MultiLang("MangaForFree.net", "https://mangaforfree.net", listOf("en", "ko", "all"), isNsfw = true, className = "MangaForFreeFactory", pkgName = "mangaforfree", overrideVersionCode = 1),
         MultiLang("Manhwa18.cc", "https://manhwa18.cc", listOf("en", "ko", "all"), isNsfw = true, className = "Manhwa18CcFactory", pkgName = "manhwa18cc", overrideVersionCode = 1),
-        MultiLang("Reaper Scans", "https://reaperscans.com", listOf("en", "pt-BR"), className = "ReaperScansFactory", pkgName = "reaperscans", overrideVersionCode = 3),
+        MultiLang("Reaper Scans", "https://reaperscans.com", listOf("en", "pt-BR"), className = "ReaperScansFactory", pkgName = "reaperscans", overrideVersionCode = 4),
         MultiLang("Seven King Scanlation", "https://sksubs.net", listOf("es", "en"), isNsfw = true),
         MultiLang("YugenMangas", "https://yugenmangas.com", listOf("es", "pt-BR"), overrideVersionCode = 2),
         SingleLang("1st Kiss Manga.love", "https://1stkissmanga.love", "en", className = "FirstKissMangaLove"),
@@ -453,7 +453,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("WoopRead", "https://woopread.com", "en", overrideVersionCode = 1),
         SingleLang("WuxiaWorld", "https://wuxiaworld.site", "en", overrideVersionCode = 1),
         SingleLang("XManga", "https://xmanga.io", "en", isNsfw = true),
-        SingleLang("XuN Scans", "https://xunscans.xyz", "en", overrideVersionCode = 2),
+        SingleLang("XuN Scans", "https://xunscans.xyz", "en", overrideVersionCode = 3),
         SingleLang("Yaoi Hentai", "https://yaoihentai.me", "en", isNsfw = true),
         SingleLang("Yaoi Toshokan", "https://yaoitoshokan.net", "pt-BR", isNsfw = true, overrideVersionCode = 4),
         SingleLang("Yaoi.mobi", "https://yaoi.mobi", "en", isNsfw = true, className = "YaoiManga", pkgName = "yaoimanga", overrideVersionCode = 4),
