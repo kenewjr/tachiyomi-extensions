@@ -10,7 +10,7 @@ class MadaraGenerator : ThemeSourceGenerator {
 
     override val themeClass = "Madara"
 
-    override val baseVersionCode: Int = 17
+    override val baseVersionCode: Int = 20
 
     override val sources = listOf(
         MultiLang("Leviatan Scans", "https://leviatanscans.com", listOf("en", "es"), className = "LeviatanScansFactory", overrideVersionCode = 9),
@@ -19,10 +19,10 @@ class MadaraGenerator : ThemeSourceGenerator {
         MultiLang("Reaper Scans", "https://reaperscans.com", listOf("en", "pt-BR"), className = "ReaperScansFactory", pkgName = "reaperscans", overrideVersionCode = 4),
         MultiLang("Seven King Scanlation", "https://sksubs.net", listOf("es", "en"), isNsfw = true),
         MultiLang("YugenMangas", "https://yugenmangas.com", listOf("es", "pt-BR"), overrideVersionCode = 2),
-        SingleLang("1st Kiss Manga.love", "https://1stkissmanga.love", "en", className = "FirstKissMangaLove"),
-        SingleLang("1st Kiss Manhua", "https://1stkissmanhua.com", "en", className = "FirstKissManhua", overrideVersionCode = 2),
-        SingleLang("1st Kiss", "https://1stkissmanga.io", "en", className = "FirstKissManga", pkgName = "firstkissmanga", overrideVersionCode = 6),
-        SingleLang("1stKissManga.Club", "https://1stkissmanga.club", "en", className = "FirstKissMangaClub"),
+        SingleLang("1st Kiss Manga.love", "https://1stkissmanga.love", "en", className = "FirstKissMangaLove", overrideVersionCode = 1),
+        SingleLang("1st Kiss Manhua", "https://1stkissmanhua.com", "en", className = "FirstKissManhua", overrideVersionCode = 3),
+        SingleLang("1st Kiss", "https://1stkissmanga.io", "en", className = "FirstKissManga", pkgName = "firstkissmanga", overrideVersionCode = 7),
+        SingleLang("1stKissManga.Club", "https://1stkissmanga.club", "en", className = "FirstKissMangaClub", overrideVersionCode = 1),
         SingleLang("247Manga", "https://247manga.com", "en", className = "Manga247", overrideVersionCode = 1),
         SingleLang("24hManga", "https://24hmanga.com", "en", isNsfw = true, className = "TwentyFourhManga"),
         SingleLang("24hRomance", "https://24hromance.com", "en", className = "Romance24h"),
@@ -49,7 +49,6 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Asura Raw", "https://asuraraw.com", "en", overrideVersionCode = 1),
         SingleLang("Atikrost", "https://atikrost.com", "tr", overrideVersionCode = 1),
         SingleLang("Azora", "https://azoraworld.com", "ar", overrideVersionCode = 3),
-        SingleLang("BL Comics", "https://blcomics.net", "en", isNsfw = true),
         SingleLang("BL Manhwa Club", "https://blmanhwa.club", "pt-BR", isNsfw = true, className = "BlManhwaClub", overrideVersionCode = 2),
         SingleLang("Bakaman", "https://bakaman.net", "th", overrideVersionCode = 1),
         SingleLang("Banana Cítrica", "https://dinastiacilly.com", "pt-BR", isNsfw = true, pkgName = "bananamecanica", className = "BananaCitrica", overrideVersionCode = 4),
@@ -342,10 +341,8 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Nitro Scans", "https://nitroscans.com", "en"),
         SingleLang("NovelMic", "https://novelmic.com", "en", overrideVersionCode = 1),
         SingleLang("Novels Town", "https://novelstown.cyou", "ar"),
-        SingleLang("OTksScanlator", "https://otkscanlator.xyz", "pt-BR", isNsfw = true, className = "OtksScanlator"),
         SingleLang("Oh No Manga", "https://ohnomanga.com", "en", isNsfw = true),
         SingleLang("Okamishi Scans", "https://geassscan.net", "pt-BR", pkgName = "geassscanlator", overrideVersionCode = 5),
-        SingleLang("Olho da Lua", "https://olhodalua.xyz", "pt-BR", className = "OlhoDaLua", overrideVersionCode = 2),
         SingleLang("Olympus Scanlation", "https://olympusscanlation.com", "es"),
         SingleLang("Ow Scan", "https://owscan.com", "pt-BR", overrideVersionCode = 1),
         SingleLang("Paean Scans", "https://paeanscans.com", "en", overrideVersionCode = 1),
@@ -396,7 +393,6 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Smash Scan", "https://smashscan.com.br", "pt-BR", overrideVersionCode = 1),
         SingleLang("SodaScan", "https://sodascan.xyz", "pt-BR", isNsfw = true, overrideVersionCode = 1),
         SingleLang("Solo Leveling", "https://readsololeveling.online", "en"),
-        SingleLang("StageComics", "https://stagecomics.com", "pt-BR", overrideVersionCode = 3),
         SingleLang("Sugar Babies", "https://sugarbbscan.com", "en", overrideVersionCode = 2),
         SingleLang("Sunshine Butterfly Scans", "https://sunshinebutterflyscan.com", "en", isNsfw = true, overrideVersionCode = 1),
         SingleLang("SuperManga", "https://supermanga.co", "en"),
@@ -406,6 +402,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("TeenManhua", "https://teenmanhua.com", "en"),
         SingleLang("The Beginning After The End", "https://www.thebeginningaftertheend.fr", "fr"),
         SingleLang("The Guild", "https://theguildscans.com", "en"),
+        SingleLang("The Sugar", "https://thesugarscan.com", "pt-BR"),
         SingleLang("TheFluffyHangoutGroup", "https://www.fluffyhangout.club", "en", overrideVersionCode = 2),
         SingleLang("Three Queens Scanlator", "https://tqscan.com.br", "pt-BR", overrideVersionCode = 3),
         SingleLang("Tiempo de webeo", "https://tiempodewebeo.com", "es", className = "TiempoDeWebeo", isNsfw = true),
@@ -459,6 +456,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Yuri Verso", "https://yuri.live", "pt-BR", overrideVersionCode = 3),
         SingleLang("Zinmanga", "https://zinmanga.com", "en", overrideVersionCode = 1),
         SingleLang("Zinmanhwa", "https://zinmanhwa.com", "en"),
+        SingleLang("ZombieLand Saga Scans", "https://zombiland.com.br", "pt-BR", isNsfw = true),
         SingleLang("ZuttoManga", "https://zuttomanga.com", "en", overrideVersionCode = 1),
         SingleLang("hManhwa", "https://hmanhwa.com", "en", isNsfw = true, overrideVersionCode = 1),
         SingleLang("Çizgi Roman Arşivi", "https://cizgiromanarsivi.com", "tr", className = "CizgiRomanArsivi"),
