@@ -10,7 +10,7 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
 
     override val themeClass = "WPMangaStream"
 
-    override val baseVersionCode: Int = 13
+    override val baseVersionCode: Int = 14
 
     override val sources = listOf(
         MultiLang("Asura Scans", "https://www.asurascans.com", listOf("en", "tr"), className = "AsuraScansFactory", pkgName = "asurascans", overrideVersionCode = 12),
@@ -21,6 +21,7 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
         SingleLang("Imperfect Comics", "https://imperfectcomic.com", "en", overrideVersionCode = 8),
         SingleLang("Infernal Void Scans", "https://infernalvoidscans.com", "en", overrideVersionCode = 3),
         SingleLang("Kaisar Komik", "https://kaisarkomik.com", "id", overrideVersionCode = 1),
+        SingleLang("Kanzenin", "https://kanzenin.xyz", "id", isNsfw = true),
         SingleLang("KlanKomik", "https://klankomik.com", "id", overrideVersionCode = 1),
         SingleLang("Kombatch", "https://kombatch.com", "id"),
         SingleLang("Komik AV", "https://komikav.com", "id", overrideVersionCode = 1),
@@ -32,6 +33,7 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
         SingleLang("Manga Pro Z", "https://mangaprotm.com", "ar", overrideVersionCode = 1),
         SingleLang("Manga Raw.org", "https://mangaraw.org", "ja", className = "MangaRawOrg", overrideVersionCode = 1),
         SingleLang("MangaIndonesia", "https://mangaindonesia.net", "id"),
+        SingleLang("Manhwax", "https://manhwax.com", "en", isNsfw = true),
         SingleLang("MangaSwat", "https://swatmanga.co", "ar", overrideVersionCode = 6),
         SingleLang("Mangakyo", "https://www.mangakyo.me", "id"),
         SingleLang("MasterKomik", "https://masterkomik.com", "id", overrideVersionCode = 1),
@@ -51,7 +53,6 @@ class WPMangaStreamGenerator : ThemeSourceGenerator {
         SingleLang("Tempest Manga", "https://manga.tempestfansub.com", "tr"),
         SingleLang("The Apollo Team", "https://theapollo.team", "en"),
         SingleLang("TukangKomik", "https://tukangkomik.com", "id"),
-        SingleLang("Vapo Scan", "https://vaposcans.com", "pt-BR", overrideVersionCode = 3),
         SingleLang("West Manga", "https://westmanga.info", "id", overrideVersionCode = 1),
         SingleLang("xCaliBR Scans", "https://xcalibrscans.com", "en", overrideVersionCode = 3),
         SingleLang("Shadow Mangas", "https://shadowmangas.com", "es"),
