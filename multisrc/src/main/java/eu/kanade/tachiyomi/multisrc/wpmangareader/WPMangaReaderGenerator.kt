@@ -28,16 +28,18 @@ class WPMangaReaderGenerator : ThemeSourceGenerator {
         SingleLang("Martial Manga", "https://martialmanga.com", "es"),
         SingleLang("Mode Scanlator", "https://modescanlator.com", "pt-BR", overrideVersionCode = 7),
         SingleLang("Ngomik", "https://ngomik.net", "id", overrideVersionCode = 1),
+        SingleLang("MangKomik", "https://mangkomik.com", "id"),
         SingleLang("Sekaikomik", "https://www.sekaikomik.site", "id", isNsfw = true, overrideVersionCode = 8),
+        SingleLang("Sekaikomik", "https://www.sekaikomik.live", "id", isNsfw = true, overrideVersionCode = 9),
         SingleLang("Davey Scans", "https://daveyscans.com", "id", overrideVersionCode = 1),
         SingleLang("Mangasusu", "https://mangasusu.co.in", "id", isNsfw = true, overrideVersionCode = 1),
         SingleLang("Manhua Raw", "https://manhuaraw.com", "en"),
+        SingleLang("ManhwaIndo", "https://manhwaindo.id", "id", isNsfw = true),
         SingleLang("TurkToon", "https://turktoon.com", "tr"),
         SingleLang("Gecenin Lordu", "https://geceninlordu.com", "tr", overrideVersionCode = 1),
         SingleLang("PMScans", "http://www.rackusreader.org", "en", overrideVersionCode = 2),
         SingleLang("Realm Scans", "https://realmscans.com", "en", overrideVersionCode = 3),
         SingleLang("Skull Scans", "https://www.skullscans.com", "en", overrideVersionCode = 1),
-        SingleLang("Shimada Scans", "https://shimadascans.com", "en"),
         SingleLang("Shooting Star Scans", "https://shootingstarscans.com", "en", overrideVersionCode = 3),
         SingleLang("Azure Scans", "https://azuremanga.com", "en", overrideVersionCode = 1),
         SingleLang("Patatescans", "https://patatescans.com", "fr", isNsfw = true, overrideVersionCode = 2),
@@ -52,6 +54,7 @@ class WPMangaReaderGenerator : ThemeSourceGenerator {
         SingleLang("Arcane scan", "https://arcanescan.fr", "fr"),
         SingleLang("Franxx Mangás", "https://franxxmangas.net", "pt-BR", className = "FranxxMangas", isNsfw = true),
         SingleLang("Origami Orpheans", "https://origami-orpheans.com.br", "pt-BR", overrideVersionCode = 9),
+        SingleLang("Miau Scan", "https://miauscan.com", "es"),
     )
 
     companion object {
