@@ -1,9 +1,9 @@
 package eu.kanade.tachiyomi.extension.ru.henchan
 
 import android.annotation.SuppressLint
-import eu.kanade.tachiyomi.lib.ratelimit.RateLimitInterceptor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.asObservable
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
@@ -27,19 +27,21 @@ class Henchan : ParsedHttpSource() {
 
     override val name = "Henchan"
 
-    override val baseUrl = "https://xxx.hentaichan.live"
+    override val baseUrl = "https://xxxx.hentaichan.live"
 
     override val lang = "ru"
 
-    override val supportsLatest = false
-
-    private val rateLimitInterceptor = RateLimitInterceptor(2)
+    override val supportsLatest = true
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addNetworkInterceptor(rateLimitInterceptor).build()
+        .rateLimit(2)
+        .build()
 
     override fun popularMangaRequest(page: Int): Request =
         GET("$baseUrl/mostfavorites&sort=manga?offset=${20 * (page - 1)}", headers)
+
+    override fun latestUpdatesRequest(page: Int): Request =
+        GET("$baseUrl/manga/new?offset=${20 * (page - 1)}", headers)
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
 
@@ -57,6 +59,7 @@ class Henchan : ParsedHttpSource() {
                                 genres += (if (f.isExcluded()) "-" else "") + f.id + '+'
                             }
                     }
+                    else -> return@forEach
                 }
             }
 
@@ -66,6 +69,7 @@ class Henchan : ParsedHttpSource() {
                         is OrderBy -> {
                             order = filter.toUriPartWithGenres()
                         }
+                        else -> return@forEach
                     }
                 }
                 "$baseUrl/tags/${genres.dropLast(1)}&sort=manga$order?offset=${20 * (page - 1)}"
@@ -75,6 +79,7 @@ class Henchan : ParsedHttpSource() {
                         is OrderBy -> {
                             order = filter.toUriPartWithoutGenres()
                         }
+                        else -> return@forEach
                     }
                 }
                 "$baseUrl/$order?offset=${20 * (page - 1)}"
@@ -85,14 +90,11 @@ class Henchan : ParsedHttpSource() {
 
     override fun popularMangaSelector() = "div.content_row"
 
-    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesSelector() = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesFromElement(element: Element) = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesNextPageSelector() = throw UnsupportedOperationException("Not used")
+    override fun latestUpdatesSelector() = popularMangaSelector()
 
     override fun searchMangaSelector() = ".content_row:not(:has(div.item:containsOwn(Тип)))"
 
-    private fun String.getHQThumbnail(): String? {
+    private fun String.getHQThumbnail(): String {
         val isExHenManga = this.contains("/manganew_thumbs_blur/")
         val regex = "(?<=/)manganew_thumbs\\w*?(?=/)".toRegex(RegexOption.IGNORE_CASE)
         return this.replace(regex, "showfull_retina/manga")
@@ -110,10 +112,15 @@ class Henchan : ParsedHttpSource() {
         return manga
     }
 
+    override fun latestUpdatesFromElement(element: Element): SManga =
+        popularMangaFromElement(element)
+
     override fun searchMangaFromElement(element: Element): SManga =
         popularMangaFromElement(element)
 
     override fun popularMangaNextPageSelector() = "#pagination > a:contains(Вперед)"
+
+    override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
     override fun searchMangaNextPageSelector() = "#nextlink, ${popularMangaNextPageSelector()}"
 

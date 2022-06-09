@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.extension.ru.mangachan
 
-import eu.kanade.tachiyomi.lib.ratelimit.RateLimitInterceptor
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -28,12 +28,11 @@ class Mangachan : ParsedHttpSource() {
 
     override val lang = "ru"
 
-    override val supportsLatest = false
-
-    private val rateLimitInterceptor = RateLimitInterceptor(2)
+    override val supportsLatest = true
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addNetworkInterceptor(rateLimitInterceptor).build()
+        .rateLimit(2)
+        .build()
 
     override fun popularMangaRequest(page: Int): Request =
         GET("$baseUrl/mostfavorites?offset=${20 * (page - 1)}", headers)
@@ -67,6 +66,7 @@ class Mangachan : ParsedHttpSource() {
                         }
                     }
                     is Status -> status = arrayOf("", "all_done", "end", "ongoing", "new_ch")[filter.state]
+                    else -> continue
                 }
             }
 
@@ -80,6 +80,7 @@ class Mangachan : ParsedHttpSource() {
                                 arrayOf("&n=dateasc", "&n=favdesc", "&n=abcasc", "&n=chdesc")[filter.state!!.index]
                             }
                         }
+                        else -> continue
                     }
                 }
                 if (statusParam) {
@@ -97,6 +98,7 @@ class Mangachan : ParsedHttpSource() {
                                 arrayOf("manga/new&n=dateasc", "mostfavorites", "catalog", "sortch")[filter.state!!.index]
                             }
                         }
+                        else -> continue
                     }
                 }
                 if (statusParam) {
@@ -109,12 +111,11 @@ class Mangachan : ParsedHttpSource() {
         return GET(url, headers)
     }
 
-    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesSelector() = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesFromElement(element: Element) = throw UnsupportedOperationException("Not used")
-    override fun latestUpdatesNextPageSelector() = throw UnsupportedOperationException("Not used")
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/manga/new?offset=${20 * (page - 1)}")
 
     override fun popularMangaSelector() = "div.content_row"
+
+    override fun latestUpdatesSelector() = popularMangaSelector()
 
     override fun searchMangaSelector() = popularMangaSelector()
 
@@ -128,7 +129,18 @@ class Mangachan : ParsedHttpSource() {
         return manga
     }
 
+    override fun latestUpdatesFromElement(element: Element): SManga {
+        val manga = SManga.create()
+        manga.title = element.attr("title")
+        element.select("a:nth-child(1)").first().let {
+            manga.setUrlWithoutDomain(it.attr("href"))
+        }
+        return manga
+    }
+
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
+
+    override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
     override fun popularMangaNextPageSelector() = "a:contains(Вперед)"
 
@@ -169,7 +181,7 @@ class Mangachan : ParsedHttpSource() {
         val imgElement = document.select("img#cover").first()
         val rawCategory = infoElement.select("tr:eq(1) > td:eq(1)").text()
         val category = if (rawCategory.isNotEmpty()) {
-            rawCategory.toLowerCase()
+            rawCategory.lowercase()
         } else {
             "манга"
         }
