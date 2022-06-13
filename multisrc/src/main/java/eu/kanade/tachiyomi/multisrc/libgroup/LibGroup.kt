@@ -46,6 +46,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+
 abstract class LibGroup(
     override val name: String,
     override val baseUrl: String,
@@ -238,20 +239,27 @@ abstract class LibGroup(
         manga.thumbnail_url = document.select(".media-header__cover").attr("src")
         manga.author = body.select("div.media-info-list__title:contains(Автор) + div a").joinToString { it.text() }
         manga.artist = body.select("div.media-info-list__title:contains(Художник) + div a").joinToString { it.text() }
+
+        val StatusTranslate = body.select("div.media-info-list__title:contains(Статус перевода) + div").text().lowercase(Locale.ROOT)
+        val StatusTitle = body.select("div.media-info-list__title:contains(Статус тайтла) + div").text().lowercase(Locale.ROOT)
+
         manga.status = if (document.html().contains("paper empty section")
         ) {
             SManga.LICENSED
         } else
-            when (
-                body.select("div.media-info-list__title:contains(Статус тайтла) + div")
-                    .text()
-                    .lowercase(Locale.ROOT)
-            ) {
-                "онгоинг" -> SManga.ONGOING
-                "завершён" -> SManga.COMPLETED
-                "приостановлен" -> SManga.ON_HIATUS
-                "выпуск прекращён" -> SManga.CANCELLED
-                else -> SManga.UNKNOWN
+            when {
+                StatusTranslate.contains("завершен" ) && StatusTitle.contains("приостановлен" ) || StatusTranslate.contains("заморожен" ) -> SManga.ON_HIATUS
+                StatusTranslate.contains("завершен" ) && StatusTitle.contains("выпуск прекращён" ) -> SManga.CANCELLED
+                StatusTranslate.contains("продолжается" ) -> SManga.ONGOING
+                StatusTranslate.contains("завершен" ) -> SManga.COMPLETED
+                else -> when (StatusTitle){
+                    "онгоинг" -> SManga.ONGOING
+                    "анонс" -> SManga.ONGOING
+                    "завершён" -> SManga.COMPLETED
+                    "приостановлен" -> SManga.ON_HIATUS
+                    "выпуск прекращён" -> SManga.CANCELLED
+                    else -> SManga.UNKNOWN
+                }
             }
         manga.genre = category + ", " + rawAgeStop + ", " + genres.joinToString { it.trim() }
 
@@ -383,13 +391,6 @@ abstract class LibGroup(
     // Pages
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
-
-        val redirect = document.html()
-        if (!redirect.contains("window.__info")) {
-            if (redirect.contains("hold-transition login-page")) {
-                throw Exception("Для просмотра 18+ контента необходима авторизация через WebView")
-            }
-        }
 
         val chapInfo = document
             .select("script:containsData(window.__info)")
@@ -532,40 +533,7 @@ abstract class LibGroup(
         return POST(url.toString(), catalogHeaders())
     }
 
-    // Hack search method to add some results from search popup
-    override fun searchMangaParse(response: Response): MangasPage {
-        val searchRequest = response.request.url.queryParameter("name")
-        val mangas = mutableListOf<SManga>()
-
-        if (!searchRequest.isNullOrEmpty()) {
-            val popupSearchHeaders = headers
-                .newBuilder()
-                .add("Accept", "application/json, text/plain, */*")
-                .add("X-Requested-With", "XMLHttpRequest")
-                .build()
-
-            // +200ms
-            val popup = client.newCall(
-                GET("$baseUrl/search?query=$searchRequest", popupSearchHeaders)
-            )
-                .execute().body!!.string()
-
-            val jsonList = json.decodeFromString<JsonArray>(popup)
-            jsonList.forEach {
-                mangas.add(popularMangaFromElement(it))
-            }
-        }
-        val searchedMangas = popularMangaParse(response)
-
-        // Filtered out what find in popup search
-        mangas.addAll(
-            searchedMangas.mangas.filter { search ->
-                mangas.find { search.title == it.title } == null
-            }
-        )
-
-        return MangasPage(mangas, searchedMangas.hasNextPage)
-    }
+    override fun searchMangaParse(response: Response): MangasPage = popularMangaParse(response)
 
     // Filters
     private class SearchFilter(name: String, val id: String) : Filter.TriState(name)
