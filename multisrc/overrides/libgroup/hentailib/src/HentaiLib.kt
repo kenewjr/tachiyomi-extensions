@@ -1,11 +1,9 @@
 package eu.kanade.tachiyomi.extension.ru.hentailib
 
 import eu.kanade.tachiyomi.multisrc.libgroup.LibGroup
-import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
-import java.io.IOException
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -16,15 +14,6 @@ class HentaiLib : LibGroup("HentaiLib", "https://hentailib.me", "ru") {
 
     override val client: OkHttpClient = super.client.newBuilder()
         .addInterceptor(::imageContentTypeIntercept)
-        .addInterceptor { chain ->
-            val originalRequest = chain.request()
-            if (originalRequest.url.toString().contains(baseUrl))
-                if (!network.cloudflareClient.newCall(GET(baseUrl, headers))
-                    .execute().body!!.string().contains("m-menu__user-info")
-                )
-                    throw IOException("Для просмотра 18+ контента необходима авторизация через WebView")
-            return@addInterceptor chain.proceed(originalRequest)
-        }
         .build()
 
     private var csrfToken: String = ""

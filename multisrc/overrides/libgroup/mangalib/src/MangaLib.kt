@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.multisrc.libgroup.LibGroup
-import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -15,7 +14,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.io.IOException
 
 class MangaLib : LibGroup("MangaLib", "https://mangalib.me", "ru")  {
 
@@ -25,18 +23,13 @@ class MangaLib : LibGroup("MangaLib", "https://mangalib.me", "ru")  {
         Injekt.get<Application>().getSharedPreferences("source_${id}_2", 0x0000)
     }
 
+    private val baseOrig: String = "https://mangalib.me"
+    private val baseMirr: String = "https://mangalib.org"
+    private var domain: String? = preferences.getString(DOMAIN_PREF, baseOrig)
+    override val baseUrl: String = domain.toString()
+
     override val client: OkHttpClient = super.client.newBuilder()
         .addInterceptor(::imageContentTypeIntercept)
-        .addInterceptor { chain ->
-            val originalRequest = chain.request()
-            val response = chain.proceed(originalRequest)
-            if (originalRequest.url.toString().contains(baseUrl))
-                if (!network.cloudflareClient.newCall(GET(baseUrl, headers))
-                        .execute().body!!.string().contains("m-menu__user-info") && response.code == 404
-                )
-                    throw IOException("Для просмотра 18+ контента необходима авторизация через WebView")
-            return@addInterceptor response
-        }
         .build()
 
     private var csrfToken: String = ""
@@ -48,11 +41,6 @@ class MangaLib : LibGroup("MangaLib", "https://mangalib.me", "ru")  {
             add("x-csrf-token", csrfToken)
         }
         .build()
-
-    private val baseOrig: String = "https://mangalib.me"
-    private val baseMirr: String = "https://mangalib.org"
-    private var domain: String? = preferences.getString(DOMAIN_PREF, baseOrig)
-    override val baseUrl: String = domain.toString()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         if (csrfToken.isEmpty()) {
