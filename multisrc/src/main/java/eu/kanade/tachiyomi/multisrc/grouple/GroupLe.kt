@@ -44,7 +44,7 @@ abstract class GroupLe(
 
     override val supportsLatest = true
 
-    override val client: OkHttpClient = network.client.newBuilder()
+    override val client: OkHttpClient = network.cloudflareClient.newBuilder()
         .rateLimit(2)
         .addNetworkInterceptor { chain ->
             val originalRequest = chain.request()
@@ -259,7 +259,7 @@ abstract class GroupLe(
             }
             if (!url.contains("://"))
                 url = "https:$url"
-            pages.add(Page(i++, "", url))
+            pages.add(Page(i++, "", url.replace("//resh","//h")))
         }
         return pages
     }
