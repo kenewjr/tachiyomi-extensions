@@ -350,11 +350,12 @@ class Japscan : ConfigurableSource, ParsedHttpSource() {
         Log.d("japscan", "ZJS at $zjsurl")
         val zjs = client.newCall(GET(baseUrl + zjsurl, headers)).execute().body!!.string()
         Log.d("japscan", "webtoon, netdumping initiated")
-        val pagecount = document.getElementsByTag("option").size
+        val pagesElement = document.getElementById("pages")
+        val pagecount = pagesElement.getElementsByTag("option").size
         val pages = ArrayList<Page>()
         val handler = Handler(Looper.getMainLooper())
         val checkNew = ArrayList<String>(pagecount)
-        var maxIter = document.getElementsByTag("option").size
+        var maxIter = pagecount
         var isSinglePage = false
         if ((zjs.lowercase(Locale.ROOT).split("new image").size - 1) == 1) {
             isSinglePage = true
@@ -379,7 +380,7 @@ class Japscan : ConfigurableSource, ParsedHttpSource() {
                             view: WebView,
                             request: WebResourceRequest
                         ): WebResourceResponse? {
-                            if (request.url.toString().startsWith("https://c.japscan.ws/") && !checkNew.contains(request.url.toString())) {
+                            if (request.url.toString().startsWith("https://cdn.statically.io/img/c.japscan.ws/") && !checkNew.contains(request.url.toString())) {
                                 checkNew.add(request.url.toString())
                                 pages.add(Page(pages.size, "", request.url.toString()))
                                 Log.d("japscan", "intercepted ${request.url}")
@@ -395,7 +396,7 @@ class Japscan : ConfigurableSource, ParsedHttpSource() {
                 if (isSinglePage) {
                     webView?.loadUrl(baseUrl + document.select("li[^data-]").first().dataset()["chapter-url"])
                 } else {
-                    webView?.loadUrl(baseUrl + document.getElementsByTag("option")[i].attr("value"))
+                    webView?.loadUrl(baseUrl + pagesElement.getElementsByTag("option")[i].attr("value"))
                 }
             }
             barrier.await()

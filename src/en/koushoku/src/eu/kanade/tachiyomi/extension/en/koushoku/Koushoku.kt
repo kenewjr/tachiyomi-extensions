@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -33,11 +34,16 @@ class Koushoku : ParsedHttpSource() {
     override val baseUrl = "https://koushoku.org"
     override val name = "Koushoku"
     override val lang = "en"
-    override val supportsLatest = false
+    override val supportsLatest = true
 
     override val client: OkHttpClient = network.cloudflareClient.newBuilder()
-        .rateLimit(5)
+        .addInterceptor(KoushokuWebViewInterceptor())
+        .rateLimit(1, 4)
         .build()
+
+    override fun headersBuilder(): Headers.Builder = super.headersBuilder()
+        .set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
+        .add("Referer", "$baseUrl/")
 
     override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/?page=$page", headers)
     override fun latestUpdatesSelector() = "#archives.feed .entries > .entry"
@@ -84,7 +90,7 @@ class Koushoku : ParsedHttpSource() {
     }
 
     private fun buildAdvQuery(query: String, filterList: FilterList): String {
-        val title = if (query.isNotBlank()) "title*:$query " else ""
+        val title = if (query.isNotBlank()) "title*:\"$query\" " else ""
         val filters: List<String> = filterList.filterIsInstance<Filter.Text>().map { filter ->
             if (filter.state.isBlank()) return@map ""
             val included = mutableListOf<String>()
@@ -98,8 +104,8 @@ class Koushoku : ParsedHttpSource() {
                 }
             }
             buildString {
-                if (included.isNotEmpty()) append("$name*:${included.joinToString(",")} ")
-                if (excluded.isNotEmpty()) append("-$name*:${excluded.joinToString(",")}")
+                if (included.isNotEmpty()) append("$name&*:\"${included.joinToString(",")}\" ")
+                if (excluded.isNotEmpty()) append("-$name&*:\"${excluded.joinToString(",")}\"")
             }
         }
         return "$title${
@@ -111,14 +117,26 @@ class Koushoku : ParsedHttpSource() {
     override fun searchMangaNextPageSelector() = latestUpdatesNextPageSelector()
     override fun searchMangaFromElement(element: Element) = latestUpdatesFromElement(element)
 
-    override fun popularMangaRequest(page: Int) = latestUpdatesRequest(page)
+    override fun popularMangaRequest(page: Int) = GET("$baseUrl/popular?page=$page", headers)
     override fun popularMangaSelector() = latestUpdatesSelector()
     override fun popularMangaNextPageSelector() = latestUpdatesNextPageSelector()
     override fun popularMangaFromElement(element: Element) = latestUpdatesFromElement(element)
 
+    override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
+        return if (!manga.initialized) {
+            super.fetchMangaDetails(manga)
+        } else {
+            Observable.just(manga)
+        }
+    }
+
     override fun mangaDetailsParse(document: Document) = SManga.create().apply {
-        title = document.select(".metadata .title").text()
-        thumbnail_url = document.select(thumbnailSelector).attr("src")
+        title = document.selectFirst(".metadata .title").text()
+
+        // Reuse cover from browse
+        thumbnail_url = document.selectFirst(thumbnailSelector).attr("src")
+            .replace(Regex("/\\d+\\.webp\$"), "/288.webp")
+
         artist = document.select(".metadata .artists a, .metadata .circles a")
             .joinToString { it.text() }
         author = artist
@@ -128,10 +146,9 @@ class Koushoku : ParsedHttpSource() {
         status = SManga.COMPLETED
     }
 
-    override fun chapterListRequest(manga: SManga) = GET("$baseUrl${manga.url}", headers)
-
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
+
         return listOf(
             SChapter.create().apply {
                 setUrlWithoutDomain(response.request.url.encodedPath)
@@ -147,7 +164,7 @@ class Koushoku : ParsedHttpSource() {
 
     override fun chapterListSelector() = throw UnsupportedOperationException("Not used")
 
-    override fun pageListRequest(chapter: SChapter) = GET("$baseUrl${chapter.url}/1")
+    override fun pageListRequest(chapter: SChapter) = GET("$baseUrl${chapter.url}/1", headers)
 
     override fun pageListParse(document: Document): List<Page> {
         val totalPages = document.selectFirst(".total").text().toInt()
@@ -164,6 +181,14 @@ class Koushoku : ParsedHttpSource() {
         return (1..totalPages).map {
             Page(it, "", "$origin/data/$id/$it.jpg")
         }
+    }
+
+    override fun imageRequest(page: Page): Request {
+        val newHeaders = headersBuilder()
+            .add("Origin", baseUrl)
+            .build()
+
+        return GET(page.imageUrl!!, newHeaders)
     }
 
     override fun imageUrlParse(document: Document) = throw UnsupportedOperationException("Not used")

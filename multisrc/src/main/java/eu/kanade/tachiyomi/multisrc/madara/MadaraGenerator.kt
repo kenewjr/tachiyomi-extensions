@@ -10,10 +10,10 @@ class MadaraGenerator : ThemeSourceGenerator {
 
     override val themeClass = "Madara"
 
-    override val baseVersionCode: Int = 22
+    override val baseVersionCode: Int = 24
 
     override val sources = listOf(
-        MultiLang("Leviatan Scans", "https://leviatanscans.com", listOf("en", "es"), className = "LeviatanScansFactory", overrideVersionCode = 9),
+        MultiLang("Leviatan Scans", "https://leviatanscans.com", listOf("en", "es"), className = "LeviatanScansFactory", overrideVersionCode = 10),
         MultiLang("MangaForFree.net", "https://mangaforfree.net", listOf("en", "ko", "all"), isNsfw = true, className = "MangaForFreeFactory", pkgName = "mangaforfree", overrideVersionCode = 1),
         MultiLang("Manhwa18.cc", "https://manhwa18.cc", listOf("en", "ko", "all"), isNsfw = true, className = "Manhwa18CcFactory", pkgName = "manhwa18cc", overrideVersionCode = 2),
         MultiLang("Olympus Scanlation", "https://olympusscanlation.com", listOf("es", "pt-BR")),
@@ -131,7 +131,6 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Hades no Fansub Hentai", "https://h.mangareaderpro.com", "es", isNsfw = true),
         SingleLang("Hades no Fansub", "https://mangareaderpro.com/es", "es"),
         SingleLang("Harimanga", "https://harimanga.com", "en", overrideVersionCode = 1),
-        SingleLang("Hatachi Manga", "https://mangahatachi.com", "ja", isNsfw = true),
         SingleLang("Hattori Manga", "https://hattorimanga.com", "tr", isNsfw = true),
         SingleLang("Hayalistic", "https://hayalistic.com", "tr"),
         SingleLang("Hela Scan", "https://helascan.com", "pt-BR", isNsfw = true),
@@ -204,7 +203,6 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Manga Drop Out", "https://www.mangadropout.xyz", "id", isNsfw = true, overrideVersionCode = 1),
         SingleLang("Manga Fenix", "https://manga-fenix.com", "es", overrideVersionCode = 2),
         SingleLang("Manga Funny", "https://mangafunny.com", "en"),
-        SingleLang("Manga Gohan", "https://mangagohan.me/", "ja", overrideVersionCode = 2),
         SingleLang("Manga Hane", "https://manga-hane.com", "tr"),
         SingleLang("Manga Hentai", "https://mangahentai.me", "en", isNsfw = true, overrideVersionCode = 2),
         SingleLang("Manga Hero", "https://mangahero.xyz", "en", overrideVersionCode = 2),
@@ -214,9 +212,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Manga Leveling", "https://mangaleveling.com", "en"),
         SingleLang("Manga Lord", "https://mangalord.com", "en", overrideVersionCode = 1),
         SingleLang("Manga Mitsu", "https://mangamitsu.com", "en", isNsfw = true, overrideVersionCode = 2),
-        SingleLang("Manga Mix", "https://mangamix.me", "ar", overrideVersionCode = 1),
         SingleLang("Manga Online Team", "https://mangaonlineteam.com", "en"),
-        SingleLang("Manga Oubarab", "https://mangaoubarab.com", "ar", overrideVersionCode = 1),
         SingleLang("Manga Queen", "https://mangaqueen.net", "en"),
         SingleLang("Manga Read", "https://mangaread.co", "en", overrideVersionCode = 1),
         SingleLang("Manga Riki", "https://mangariki.com", "en"),
@@ -367,7 +363,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("NeatManga", "https://neatmanga.com", "en", overrideVersionCode = 2),
         SingleLang("NekoBreaker Scan", "https://nekobreakerscan.com", "pt-BR", overrideVersionCode = 1),
         SingleLang("NekoScan", "https://nekoscan.com", "en", overrideVersionCode = 2),
-        SingleLang("Neox Scanlator", "https://neoxscans.net", "pt-BR", overrideVersionCode = 14),
+        SingleLang("Niceoppai", "https://www.niceoppai.net", "th", isNsfw = false),
         SingleLang("Night Comic", "https://www.nightcomic.com", "en", overrideVersionCode = 1),
         SingleLang("Niji Translations", "https://niji-translations.com", "ar", overrideVersionCode = 1),
         SingleLang("Ninja Scan", "https://ninjascan.xyz", "pt-BR", overrideVersionCode = 1),
@@ -448,7 +444,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("Sweet Desire Scan", "https://sweetdesire.com.br", "pt-BR", isNsfw = true),
         SingleLang("Sweet Time Scan", "https://sweetscan.net", "pt-BR", overrideVersionCode = 2),
         SingleLang("TappyToon.Net", "https://tappytoon.net", "en", className = "Tappytoonnet"),
-        SingleLang("Tatakae Scan", "https://tatakaescan.xyz", "pt-BR", isNsfw = true, overrideVersionCode = 1),
+        SingleLang("Tatakae Scan", "https://tatakaescan.com", "pt-BR", isNsfw = true, overrideVersionCode = 2),
         SingleLang("Taurus Fansub", "https://taurusfansub.com", "es", isNsfw = false),
         SingleLang("TeenManhua", "https://teenmanhua.com", "en"),
         SingleLang("The Beginning After The End", "https://www.thebeginningaftertheend.fr", "fr"),
@@ -517,7 +513,7 @@ class MadaraGenerator : ThemeSourceGenerator {
         SingleLang("عرب تونز", "https://arabtoons.net", "ar", isNsfw = true, className = "ArabToons"),
         SingleLang("مانجا العاشق", "https://3asq.org", "ar", className = "Manga3asq", overrideVersionCode = 2),
         SingleLang("مانجا عرب تيم Manga Arab Team", "https://mangaarbteam.com", "ar", className = "MangaArabTeam", overrideVersionCode = 1),
-        SingleLang("مانجا فليكس", "https://www.manga-flix.com", "ar", isNsfw = false, className = "MangaFlix"),
+        SingleLang("مانجا فليكس", "https://www.manga-flix.com", "ar", isNsfw = false, className = "MangaFlix", overrideVersionCode = 1),
         SingleLang("مانجا ليك", "https://mangalek.com", "ar", className = "Mangalek", overrideVersionCode = 1),
         SingleLang("مانجا لينك", "https://mangalink.io", "ar", className = "MangaLinkio", overrideVersionCode = 2),
         SingleLang("شبكة كونان العربية", "https://manga.detectiveconanar.com", "ar", className = "DetectiveConanAr", overrideVersionCode = 2),
