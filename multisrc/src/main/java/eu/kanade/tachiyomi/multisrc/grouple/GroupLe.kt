@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -48,7 +49,7 @@ abstract class GroupLe(
             val originalRequest = chain.request()
             val response = chain.proceed(originalRequest)
             if (originalRequest.url.toString().contains(baseUrl) and (originalRequest.url.toString().contains("internal/redirect") or (response.code == 301)))
-                throw IOException("Манга переехала на другой адрес/ссылку!")
+                throw IOException("Ссылка на мангу была изменена. Перемегрируйте мангу на тотже (или смежный с GroupLe) источник или передабавте из Поисковика/Каталога.")
             response
         }
         .build()
@@ -91,6 +92,14 @@ abstract class GroupLe(
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
 
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        val url = "$baseUrl/search/advanced?offset=${50 * (page - 1)}".toHttpUrlOrNull()!!.newBuilder()
+        if (query.isNotEmpty()) {
+            url.addQueryParameter("q", query)
+        }
+        return GET(url.toString().replace("=%3D", "="), headers)
+    }
 
     override fun mangaDetailsParse(document: Document): SManga {
         val infoElement = document.select(".expandable").first()
@@ -177,7 +186,7 @@ abstract class GroupLe(
     override fun chapterListSelector() = "div.chapters-link > table > tbody > tr:has(td > a):has(td.date:not(.text-info))"
 
     private fun chapterFromElement(element: Element, manga: SManga): SChapter {
-        val urlElement = element.select("a").first()
+        val urlElement = element.select("a.chapter-link").first()
         val chapterInf = element.select("td.item-title").first()
         val urlText = urlElement.text()
 
@@ -240,7 +249,14 @@ abstract class GroupLe(
 
     override fun pageListParse(response: Response): List<Page> {
         val html = response.body!!.string()
-        val beginIndex = html.indexOf("rm_h.initReader( [")
+
+        val readerMark = "rm_h.initReader( ["
+
+        if (!html.contains(readerMark)) {
+            throw Exception("Для просмотра 18+ контента необходима авторизация через WebView")
+        }
+
+        val beginIndex = html.indexOf(readerMark)
         val endIndex = html.indexOf(");", beginIndex)
         val trimmedHtml = html.substring(beginIndex, endIndex)
 
