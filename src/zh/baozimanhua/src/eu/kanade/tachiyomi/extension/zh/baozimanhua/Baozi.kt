@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -50,13 +51,17 @@ class Baozi : ParsedHttpSource(), ConfigurableSource {
     override val client = network.cloudflareClient.newBuilder()
         .rateLimit(2)
         .addInterceptor(bannerInterceptor)
+        .addNetworkInterceptor(MissingImageInterceptor)
         .build()
+
+    override fun headersBuilder() = super.headersBuilder()
+        .add("Referer", "$baseUrl/")
 
     override fun chapterListSelector() = throw UnsupportedOperationException("Not used.")
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        val fullListTitle = document.selectFirst(".section-title:containsOwn(章节目录)")
+        val fullListTitle = document.selectFirst(".section-title:containsOwn(章节目录), .section-title:containsOwn(章節目錄)")
         return if (fullListTitle == null) { // only latest chapters
             document.select(Evaluator.Class("comics-chapters"))
         } else {
@@ -118,15 +123,13 @@ class Baozi : ParsedHttpSource(), ConfigurableSource {
 
     override fun mangaDetailsParse(document: Document): SManga {
         return SManga.create().apply {
-            title = document.select("h1.comics-detail__title").text().trim()
+            title = document.select("h1.comics-detail__title").text()
             thumbnail_url = document.select("div.pure-g div > amp-img").attr("src").trim()
-            author = document.select("h2.comics-detail__author").text().trim()
-            description = document.select("p.comics-detail__desc").text().trim()
-            status = when (document.selectFirst("div.tag-list > span.tag").text().trim()) {
-                "连载中" -> SManga.ONGOING
-                "已完结" -> SManga.COMPLETED
-                "連載中" -> SManga.ONGOING
-                "已完結" -> SManga.COMPLETED
+            author = document.select("h2.comics-detail__author").text()
+            description = document.select("p.comics-detail__desc").text()
+            status = when (document.selectFirst("div.tag-list > span.tag").text()) {
+                "连载中", "連載中" -> SManga.ONGOING
+                "已完结", "已完結" -> SManga.COMPLETED
                 else -> SManga.UNKNOWN
             }
         }
@@ -187,7 +190,12 @@ class Baozi : ParsedHttpSource(), ConfigurableSource {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         // impossible to search a manga and use the filters
         return if (query.isNotEmpty()) {
-            GET("$baseUrl/search?q=$query", headers)
+            val baseUrl = baseUrl.replace("webmota.com", "baozimh.com")
+            val url = baseUrl.toHttpUrl().newBuilder()
+                .addEncodedPathSegment("search")
+                .addQueryParameter("q", query)
+                .toString()
+            GET(url, headers)
         } else {
             val parts = filters.filterIsInstance<UriPartFilter>().joinToString("&") { it.toUriPart() }
             GET("$baseUrl/classify?page=$page&$parts", headers)
@@ -220,7 +228,8 @@ class Baozi : ParsedHttpSource(), ConfigurableSource {
             entries = MIRRORS
             entryValues = MIRRORS
             summary = "已选择：%s\n" +
-                "重启生效，切换简繁体后需要迁移才能刷新漫画标题。"
+                "重启生效，切换简繁体后需要迁移才能刷新漫画标题。\n" +
+                "搜索漫画时自动使用 baozimh.com 域名以避免出错。"
             setDefaultValue(MIRRORS[0])
         }.let { screen.addPreference(it) }
 

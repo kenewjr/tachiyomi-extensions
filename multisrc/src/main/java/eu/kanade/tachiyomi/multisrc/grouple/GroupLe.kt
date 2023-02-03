@@ -94,7 +94,7 @@ abstract class GroupLe(
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$baseUrl/search/advanced?offset=${50 * (page - 1)}".toHttpUrlOrNull()!!.newBuilder()
+        val url = "$baseUrl/search/advancedResults?offset=${50 * (page - 1)}".toHttpUrlOrNull()!!.newBuilder()
         if (query.isNotEmpty()) {
             url.addQueryParameter("q", query)
         }
@@ -250,7 +250,11 @@ abstract class GroupLe(
     override fun pageListParse(response: Response): List<Page> {
         val html = response.body!!.string()
 
-        val readerMark = "rm_h.initReader( ["
+        var readerMark = "rm_h.initReader( ["
+
+        if (!html.contains(readerMark)) {
+            readerMark = "rm_h.readerInit( 0,["
+        }
 
         if (!html.contains(readerMark)) {
             throw Exception("Для просмотра 18+ контента необходима авторизация через WebView")
@@ -279,6 +283,8 @@ abstract class GroupLe(
             }
             if (!url.contains("://"))
                 url = "https:$url"
+            if (url.contains("one-way.work")) // domain that does not need a token
+                url = url.substringBefore("?")
             pages.add(Page(i++, "", url.replace("//resh", "//h")))
         }
         return pages
