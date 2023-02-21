@@ -19,7 +19,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
+import java.text.ParseException
 import java.text.SimpleDateFormat
+import java.util.Locale
 
 const val API_BASE = "https://api.comick.fun"
 
@@ -55,12 +57,12 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                 addQueryParameter("page", "$page")
                 addQueryParameter("tachiyomi", "true")
             }.toString(),
-            headers
+            headers,
         )
     }
 
     override fun popularMangaParse(response: Response): MangasPage {
-        val result = json.decodeFromString<List<Manga>>(response.body!!.string())
+        val result = json.decodeFromString<List<Manga>>(response.body.string())
         return MangasPage(
             result.map { data ->
                 SManga.create().apply {
@@ -69,7 +71,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                     thumbnail_url = data.cover_url
                 }
             },
-            hasNextPage = true
+            hasNextPage = true,
         )
     }
 
@@ -84,12 +86,12 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                 addQueryParameter("page", "$page")
                 addQueryParameter("tachiyomi", "true")
             }.toString(),
-            headers
+            headers,
         )
     }
 
     override fun latestUpdatesParse(response: Response): MangasPage {
-        val result = json.decodeFromString<List<Manga>>(response.body!!.string())
+        val result = json.decodeFromString<List<Manga>>(response.body.string())
         return MangasPage(
             result.map { data ->
                 SManga.create().apply {
@@ -98,7 +100,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                     thumbnail_url = data.cover_url
                 }
             },
-            hasNextPage = true
+            hasNextPage = true,
         )
     }
 
@@ -117,27 +119,31 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                         is GenreFilter -> {
                             it.state.filter { (it as TriState).isIncluded() }.forEach {
                                 addQueryParameter(
-                                    "genres", (it as TriState).value
+                                    "genres",
+                                    (it as TriState).value,
                                 )
                             }
 
                             it.state.filter { (it as TriState).isExcluded() }.forEach {
                                 addQueryParameter(
-                                    "excludes", (it as TriState).value
+                                    "excludes",
+                                    (it as TriState).value,
                                 )
                             }
                         }
                         is DemographicFilter -> {
                             it.state.filter { (it as CheckBox).state }.forEach {
                                 addQueryParameter(
-                                    "demographic", (it as CheckBox).value
+                                    "demographic",
+                                    (it as CheckBox).value,
                                 )
                             }
                         }
                         is TypeFilter -> {
                             it.state.filter { (it as CheckBox).state }.forEach {
                                 addQueryParameter(
-                                    "country", (it as CheckBox).value
+                                    "country",
+                                    (it as CheckBox).value,
                                 )
                             }
                         }
@@ -184,7 +190,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
     }
 
     override fun searchMangaParse(response: Response): MangasPage {
-        val result = json.decodeFromString<List<Manga>>(response.body!!.string())
+        val result = json.decodeFromString<List<Manga>>(response.body.string())
         return MangasPage(
             result.map { data ->
                 SManga.create().apply {
@@ -193,7 +199,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                     thumbnail_url = data.cover_url
                 }
             },
-            hasNextPage = result.size >= 30
+            hasNextPage = result.size >= 30,
         )
     }
 
@@ -204,8 +210,8 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                 "$API_BASE${manga.url}".toHttpUrl().newBuilder().apply {
                     addQueryParameter("tachiyomi", "true")
                 }.toString(),
-                headers
-            )
+                headers,
+            ),
         ).asObservableSuccess()
             .map { response -> mangaDetailsParse(response).apply { initialized = true } }
     }
@@ -215,7 +221,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
-        val mangaData = json.decodeFromString<MangaDetails>(response.body!!.string())
+        val mangaData = json.decodeFromString<MangaDetails>(response.body.string())
         return SManga.create().apply {
             url = "$baseUrl/comic/${mangaData.comic.slug}"
             title = mangaData.comic.title
@@ -234,12 +240,12 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
             "$API_BASE${manga.url}".toHttpUrl().newBuilder().apply {
                 addQueryParameter("tachiyomi", "true")
             }.toString(),
-            headers
+            headers,
         )
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val mangaData = json.decodeFromString<MangaDetails>(response.body!!.string())
+        val mangaData = json.decodeFromString<MangaDetails>(response.body.string())
         val mangaHid = findCurrentSlug(mangaData.comic.slug)
         val chapterData = client.newCall(
             GET(
@@ -249,25 +255,32 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                     addPathSegments("chapters")
                     if (comickFunLang != "all") addQueryParameter("lang", comickFunLang)
                     addQueryParameter(
-                        "limit", mangaData.comic.chapter_count.toString()
+                        "limit",
+                        mangaData.comic.chapter_count.toString(),
                     )
                 }.toString(),
-                headers
-            )
+                headers,
+            ),
         ).execute()
-        val result = json.decodeFromString<ChapterList>(chapterData.body!!.string())
+        val result = json.decodeFromString<ChapterList>(chapterData.body.string())
         return result.chapters.map { chapter ->
             SChapter.create().apply {
                 url = "/comic/${mangaData.comic.slug}/${chapter.hid}-chapter-${chapter.chap}-$comickFunLang"
                 name = beautifyChapterName(chapter.vol, chapter.chap, chapter.title)
-                date_upload = DATE_FORMATTER.parse(chapter.created_at)!!.time
+                date_upload = chapter.created_at.let {
+                    try {
+                        DATE_FORMATTER.parse(it)?.time ?: 0L
+                    } catch (e: ParseException) {
+                        0L
+                    }
+                }
                 scanlator = chapter.group_name.joinToString().takeUnless { it.isBlank() }
             }
         }
     }
 
     private val DATE_FORMATTER by lazy {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZZZZ")
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH)
     }
 
     /** Chapter Pages **/
@@ -279,12 +292,12 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                 addPathSegment(chapterHid)
                 addQueryParameter("tachiyomi", "true")
             }.toString(),
-            headers
+            headers,
         )
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val result = json.decodeFromString<PageList>(response.body!!.string())
+        val result = json.decodeFromString<PageList>(response.body.string())
         return result.chapter.images.mapIndexedNotNull { index, data ->
             if (data.url == null) null else Page(index = index, imageUrl = data.url)
         }
@@ -300,7 +313,7 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
     }
 
     override fun getFilterList() = FilterList(
-        getFilters()
+        getFilters(),
     )
 
     /** Map the slug to comic ID as slug might be changes by comic ID will not. **/
@@ -313,11 +326,11 @@ abstract class ComickFun(override val lang: String, private val comickFunLang: S
                     addPathSegment("mapping")
                     addQueryParameter("slugs", oldSlug)
                 }.toString(),
-                headers
-            )
+                headers,
+            ),
         ).execute()
 
         /** If the API does not contain the ID for the slug, return the slug back **/
-        return json.parseToJsonElement(response.body!!.string()).jsonObject[oldSlug]!!.jsonPrimitive.content
+        return json.parseToJsonElement(response.body.string()).jsonObject[oldSlug]!!.jsonPrimitive.content
     }
 }

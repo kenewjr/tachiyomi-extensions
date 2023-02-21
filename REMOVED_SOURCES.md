@@ -5,6 +5,7 @@
 - ColaManhua (COLA漫画) https://github.com/tachiyomiorg/tachiyomi-extensions/pull/11445
 - Comikey https://github.com/tachiyomiorg/tachiyomi-extensions/pull/11971
 - CopyManga (拷贝漫画) https://github.com/tachiyomiorg/tachiyomi-extensions/pull/12376
+- Hentai Kai https://github.com/tachiyomiorg/tachiyomi-extensions/issues/9999
 - Hitomi.la https://github.com/tachiyomiorg/tachiyomi-extensions/pull/11613
 - HQ Dragon https://github.com/tachiyomiorg/tachiyomi-extensions/pull/7065
 - Koushoku https://github.com/tachiyomiorg/tachiyomi-extensions/pull/13329
@@ -40,6 +41,7 @@
 - MangaPro https://github.com/tachiyomiorg/tachiyomi-extensions/issues/13989
 - Mangawow https://github.com/tachiyomiorg/tachiyomi-extensions/issues/5367
 - Manhwaid.org https://github.com/tachiyomiorg/tachiyomi-extensions/issues/10751
+- MHScans https://github.com/tachiyomiorg/tachiyomi-extensions/issues/15319
 - NarTag https://github.com/tachiyomiorg/tachiyomi-extensions/issues/8038
 - Plot-twistnf-scans https://github.com/tachiyomiorg/tachiyomi-extensions/issues/4242
 - Reset Scans https://github.com/tachiyomiorg/tachiyomi-extensions/issues/13168
