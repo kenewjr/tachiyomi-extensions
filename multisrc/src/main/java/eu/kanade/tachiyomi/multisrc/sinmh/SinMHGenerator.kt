@@ -6,11 +6,11 @@ import generator.ThemeSourceGenerator
 class SinMHGenerator : ThemeSourceGenerator {
     override val themeClass = "SinMH"
     override val themePkg = "sinmh"
-    override val baseVersionCode = 8
+    override val baseVersionCode = 9
     override val sources = listOf(
         SingleLang(
             name = "Gufeng Manhua",
-            baseUrl = "https://www.123gf.com",
+            baseUrl = "https://www.gufengmh.com",
             lang = "zh",
             className = "Gufengmh",
             sourceName = "古风漫画网",
@@ -35,11 +35,11 @@ class SinMHGenerator : ThemeSourceGenerator {
         ),
         SingleLang(
             name = "Qinqin Manhua",
-            baseUrl = "https://www.acgqd.com",
+            baseUrl = "https://www.acgud.com",
             lang = "zh",
             className = "Qinqin",
             sourceName = "亲亲漫画",
-            overrideVersionCode = 1,
+            overrideVersionCode = 2,
         ),
         SingleLang(
             name = "57Manhua",

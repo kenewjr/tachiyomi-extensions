@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import eu.kanade.tachiyomi.AppInfo
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.asObservable
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -105,7 +106,7 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         return client.newCall(chapterListRequest(manga))
-            .asObservableSuccess()
+            .asObservable()
             .map { response -> chapterListParse(response, manga) }
     }
 
@@ -224,17 +225,34 @@ open class Cubari(override val lang: String) : HttpSource() {
                 client.newBuilder()
                     .addInterceptor(RemoteStorageUtils.TagInterceptor())
                     .build()
-                    .newCall(searchMangaRequest(page, trimmedQuery, filters))
+                    .newCall(proxySearchRequest(trimmedQuery))
                     .asObservableSuccess()
                     .map { response ->
-                        searchMangaParse(response, trimmedQuery)
+                        proxySearchParse(response, trimmedQuery)
                     }
             }
-            else -> throw Exception(SEARCH_FALLBACK_MSG)
+            else -> {
+                client.newBuilder()
+                    .addInterceptor(RemoteStorageUtils.HomeInterceptor())
+                    .build()
+                    .newCall(searchMangaRequest(page, query, filters))
+                    .asObservableSuccess()
+                    .map { response ->
+                        searchMangaParse(response, query)
+                    }
+                    .map { mangasPage ->
+                        require(mangasPage.mangas.isNotEmpty()) { SEARCH_FALLBACK_MSG }
+                        mangasPage
+                    }
+            }
         }
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        return GET("$baseUrl/", headers)
+    }
+
+    private fun proxySearchRequest(query: String): Request {
         try {
             val queryFragments = query.split("/")
             val source = queryFragments[0]
@@ -251,6 +269,17 @@ open class Cubari(override val lang: String) : HttpSource() {
     }
 
     private fun searchMangaParse(response: Response, query: String): MangasPage {
+        val result = json.parseToJsonElement(response.body.string()).jsonArray
+
+        val filterList = result.asSequence()
+            .map { it as JsonObject }
+            .filter { it["title"].toString().contains(query.trim(), true) }
+            .toList()
+
+        return parseMangaList(JsonArray(filterList), SortType.ALL)
+    }
+
+    private fun proxySearchParse(response: Response, query: String): MangasPage {
         val result = json.parseToJsonElement(response.body.string()).jsonObject
         return parseSearchList(result, query)
     }
@@ -328,6 +357,8 @@ open class Cubari(override val lang: String) : HttpSource() {
                 parseManga(jsonObj)
             } else if (sortType == SortType.UNPINNED && !pinned) {
                 parseManga(jsonObj)
+            } else if (sortType == SortType.ALL) {
+                parseManga(jsonObj)
             } else {
                 null
             }
@@ -383,6 +414,7 @@ open class Cubari(override val lang: String) : HttpSource() {
         enum class SortType {
             PINNED,
             UNPINNED,
+            ALL,
         }
     }
 }

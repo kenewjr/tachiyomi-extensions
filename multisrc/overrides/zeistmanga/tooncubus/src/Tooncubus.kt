@@ -6,9 +6,10 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.Response
-import org.jsoup.nodes.Document
 
-class Tooncubus : ZeistManga("Tooncubus", "https://www.tooncubus.site", "id") {
+class Tooncubus : ZeistManga("Tooncubus", "https://www.tooncubus.top", "id") {
+
+    override val pageListSelector = "div.check-box center"
 
     override fun chapterListParse(response: Response): List<SChapter> {
         return response.asJsoup().selectFirst("ul.series-chapterlist")!!.select("div.flexch-infoz").map { element ->
@@ -23,7 +24,8 @@ class Tooncubus : ZeistManga("Tooncubus", "https://www.tooncubus.site", "id") {
 
     override fun getChapterUrl(chapter: SChapter) = chapter.url
 
-    override fun mangaDetailsParse(document: Document): SManga {
+    override fun mangaDetailsParse(response: Response): SManga {
+        val document = response.asJsoup()
         val profileManga = document.selectFirst(".grid.gtc-235fr")!!
         return SManga.create().apply {
             thumbnail_url = profileManga.selectFirst("img")!!.attr("src")

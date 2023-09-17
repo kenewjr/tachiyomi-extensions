@@ -20,7 +20,8 @@ import eu.kanade.tachiyomi.extension.all.komga.dto.PageWrapperDto
 import eu.kanade.tachiyomi.extension.all.komga.dto.ReadListDto
 import eu.kanade.tachiyomi.extension.all.komga.dto.SeriesDto
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.asObservableSuccess
+import eu.kanade.tachiyomi.network.asObservable
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Filter
@@ -182,7 +183,7 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
 
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return client.newCall(GET(manga.url, headers))
-            .asObservableSuccess()
+            .asObservable()
             .map { response ->
                 mangaDetailsParse(response).apply { initialized = true }
             }
@@ -242,6 +243,10 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
             )
         }
     }
+
+    override fun getMangaUrl(manga: SManga) = manga.url.replace("/api/v1", "")
+
+    override fun getChapterUrl(chapter: SChapter) = chapter.url.replace("/api/v1/books", "/book")
 
     private fun processSeriesPage(response: Response): MangasPage {
         val responseBody = response.body
@@ -525,12 +530,7 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
                     client.newCall(GET("$baseUrl/api/v1/libraries", headers)).execute().use { response ->
                         libraries = try {
                             val responseBody = response.body
-                            if (responseBody != null) {
-                                responseBody.use { json.decodeFromString(it.string()) }
-                            } else {
-                                Log.e(LOG_TAG, "error while decoding JSON for libraries filter: response body is null. Response code: ${response.code}")
-                                emptyList()
-                            }
+                            responseBody.use { json.decodeFromString(it.string()) }
                         } catch (e: Exception) {
                             Log.e(LOG_TAG, "error while decoding JSON for libraries filter", e)
                             emptyList()
@@ -544,12 +544,7 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
                     client.newCall(GET("$baseUrl/api/v1/collections?unpaged=true", headers)).execute().use { response ->
                         collections = try {
                             val responseBody = response.body
-                            if (responseBody != null) {
-                                responseBody.use { json.decodeFromString<PageWrapperDto<CollectionDto>>(it.string()).content }
-                            } else {
-                                Log.e(LOG_TAG, "error while decoding JSON for collections filter: response body is null. Response code: ${response.code}")
-                                emptyList()
-                            }
+                            responseBody.use { json.decodeFromString<PageWrapperDto<CollectionDto>>(it.string()).content }
                         } catch (e: Exception) {
                             Log.e(LOG_TAG, "error while decoding JSON for collections filter", e)
                             emptyList()
@@ -563,12 +558,7 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
                     client.newCall(GET("$baseUrl/api/v1/genres", headers)).execute().use { response ->
                         genres = try {
                             val responseBody = response.body
-                            if (responseBody != null) {
-                                responseBody.use { json.decodeFromString(it.string()) }
-                            } else {
-                                Log.e(LOG_TAG, "error while decoding JSON for genres filter: response body is null. Response code: ${response.code}")
-                                emptySet()
-                            }
+                            responseBody.use { json.decodeFromString(it.string()) }
                         } catch (e: Exception) {
                             Log.e(LOG_TAG, "error while decoding JSON for genres filter", e)
                             emptySet()
@@ -639,7 +629,7 @@ open class Komga(private val suffix: String = "") : ConfigurableSource, Unmetere
         private const val PREF_PASSWORD = "Password"
         private const val PASSWORD_DEFAULT = ""
 
-        private val supportedImageTypes = listOf("image/jpeg", "image/png", "image/gif", "image/webp", "image/jxl")
+        private val supportedImageTypes = listOf("image/jpeg", "image/png", "image/gif", "image/webp", "image/jxl", "image/heif", "image/avif")
 
         private const val TYPE_SERIES = "Series"
         private const val TYPE_READLISTS = "Read lists"

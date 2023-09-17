@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="eu.kanade.tachiyomi.extension">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
         <activity
@@ -16,7 +15,7 @@
 
                 <!-- LibUrlActivity sites can be added here. -->
                 <data
-                    android:host="v1.yaoilib.net"
+                    android:host="v1.slashlib.me"
                     android:pathPattern="/..*/v..*"
                     android:scheme="https" />
             </intent-filter>

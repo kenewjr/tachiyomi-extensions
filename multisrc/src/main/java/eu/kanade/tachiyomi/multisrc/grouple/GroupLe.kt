@@ -48,7 +48,7 @@ abstract class GroupLe(
         .addNetworkInterceptor { chain ->
             val originalRequest = chain.request()
             val response = chain.proceed(originalRequest)
-            if (originalRequest.url.toString().contains(baseUrl) and (
+            if (originalRequest.url.toString().contains(baseUrl) && (
                 originalRequest.url.toString()
                     .contains("internal/redirect") or (response.code == 301)
                 )
@@ -117,7 +117,7 @@ abstract class GroupLe(
         }
 
         val ratingValue =
-            infoElement.select(".col-sm-7 .rating-block").attr("data-score").toFloat() * 2
+            infoElement.select(".rating-block").attr("data-score").toFloat() * 2
         val ratingValueOver =
             infoElement.select(".info-icon").attr("data-content").substringBeforeLast("/5</b><br/>")
                 .substringAfterLast(": <b>").replace(",", ".").toFloat() * 2
@@ -150,14 +150,14 @@ abstract class GroupLe(
             else -> rawAgeValue
         }
         val manga = SManga.create()
-        manga.title = document.select("h1.names .name").text()
+        manga.title = document.select(".names > .name").text()
         manga.author = infoElement.select("span.elem_author").first()?.text() ?: infoElement.select(
             "span.elem_screenwriter",
         ).first()?.text()
         manga.artist = infoElement.select("span.elem_illustrator").first()?.text()
         manga.genre = (
-            "$category, $rawAgeStop, " + infoElement.select("span.elem_genre")
-                .text() + ", " + infoElement.select("span.elem_tag").text()
+            "$category, $rawAgeStop, " + infoElement.select("p:contains(Жанры:) a, p:contains(Теги:) a")
+                .joinToString { it.text() }
             ).split(", ")
             .filter { it.isNotEmpty() }.joinToString { it.trim().lowercase() }
         val altName = if (infoElement.select(".another-names").isNotEmpty()) {
@@ -179,6 +179,7 @@ abstract class GroupLe(
                     "продолжается" -> SManga.ONGOING
                     "начат" -> SManga.ONGOING
                     "переведено" -> SManga.COMPLETED
+                    "завершён" -> SManga.COMPLETED
                     "приостановлен" -> SManga.ON_HIATUS
                     else -> SManga.UNKNOWN
                 }
@@ -195,17 +196,20 @@ abstract class GroupLe(
                     chapterListParse(response, manga)
                 }
         } else {
-            Observable.error(java.lang.Exception("Licensed - No chapters to show"))
+            Observable.error(java.lang.Exception("Лицензировано - Нет глав"))
         }
     }
 
     private fun chapterListParse(response: Response, manga: SManga): List<SChapter> {
         val document = response.asJsoup()
+        if ((document.select(".expandable.hide-dn").isNotEmpty() && document.select(".user-avatar").isNullOrEmpty() && document.toString().contains("current_user_country_code = 'RU'")) || (document.select("img.logo").first()?.attr("title")?.contains("Allhentai") == true && document.select(".user-avatar").isNullOrEmpty())) {
+            throw Exception("Для просмотра контента необходима авторизация через WebView\uD83C\uDF0E")
+        }
         return document.select(chapterListSelector()).map { chapterFromElement(it, manga) }
     }
 
     override fun chapterListSelector() =
-        "div.chapters-link > table > tbody > tr:has(td > a):has(td.date:not(.text-info))"
+        "tr.item-row:has(td > a):has(td.date:not(.text-info))"
 
     private fun chapterFromElement(element: Element, manga: SManga): SChapter {
         val urlElement = element.select("a.chapter-link").first()!!
@@ -213,7 +217,7 @@ abstract class GroupLe(
         val urlText = urlElement.text()
 
         val chapter = SChapter.create()
-        chapter.setUrlWithoutDomain(urlElement.attr("href") + "?mtr=true") // mtr is 18+ skip
+        chapter.setUrlWithoutDomain(urlElement.attr("href") + "?mtr=true") // mtr is 18+ fractional skip
 
         val translatorElement = urlElement.attr("title")
 
@@ -289,19 +293,12 @@ abstract class GroupLe(
         }
 
         if (!html.contains(readerMark)) {
-            val isSourceSelector = ".account-menu"
-
-            val isAuthSelector = ".user-avatar"
-
-            val isAdultContent = document.select(isSourceSelector).let {
-                it.isNotEmpty() && it.select(isAuthSelector).isNullOrEmpty()
+            if (document.select(".input-lg").isNotEmpty() || (document.select(".user-avatar").isNullOrEmpty() && document.select("img.logo").first()?.attr("title")?.contains("Allhentai") == true)) {
+                throw Exception("Для просмотра контента необходима авторизация через WebView\uD83C\uDF0E")
             }
-
-            if (isAdultContent) {
-                throw Exception("Для просмотра 18+ контента необходима авторизация через WebView")
+            if (!response.request.url.toString().contains(baseUrl)) {
+                throw Exception("Не удалось загрузить главу. Url: ${response.request.url}")
             }
-
-            throw Exception("Не удалось загрузить главу. Url: ${response.request.url}")
         }
 
         val beginIndex = html.indexOf(readerMark)

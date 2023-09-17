@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="eu.kanade.tachiyomi.extension">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity android:name=".vi.blogtruyen.BlogTruyenUrlActivity"
             android:excludeFromRecents="true"
@@ -11,8 +11,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:host="blogtruyen.vn" />
-                <data android:host="m.blogtruyen.vn" />
+                <data android:host="blogtruyenmoi.com" />
+                <data android:host="m.blogtruyenmoi.com" />
                 <data android:scheme="https" />
 
                 <data android:pathPattern="/tac-gia/..*" />

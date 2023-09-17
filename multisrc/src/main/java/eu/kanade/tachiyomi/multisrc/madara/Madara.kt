@@ -2,11 +2,13 @@ package eu.kanade.tachiyomi.multisrc.madara
 
 import android.app.Application
 import android.content.SharedPreferences
-import android.util.Log
-import android.widget.Toast
-import androidx.preference.EditTextPreference
+import android.util.Base64
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
+import eu.kanade.tachiyomi.lib.cryptoaes.CryptoAES
+import eu.kanade.tachiyomi.lib.randomua.addRandomUAPreferenceToScreen
+import eu.kanade.tachiyomi.lib.randomua.getPrefCustomUA
+import eu.kanade.tachiyomi.lib.randomua.getPrefUAType
+import eu.kanade.tachiyomi.lib.randomua.setRandomUserAgent
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.asObservable
@@ -19,15 +21,13 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.CacheControl
 import okhttp3.FormBody
-import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -37,7 +37,6 @@ import rx.Observable
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
-import java.io.IOException
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -57,96 +56,37 @@ abstract class Madara(
 
     override val supportsLatest = true
 
-    // override with true if you want useRandomUserAgentByDefault to be on by default for some source
-    protected open val useRandomUserAgentByDefault: Boolean = false
-
-    /**
-     * override include/exclude user-agent string if needed
-     *   some example:
-     *      listOf("chrome")
-     *      listOf("linux", "windows")
-     *      listOf("108")
-     */
-    protected open val filterIncludeUserAgent: List<String> = listOf()
-    protected open val filterExcludeUserAgent: List<String> = listOf()
-
-    private var userAgent: String? = null
-    private var checkedUa = false
-
-    private val hasUaIntercept by lazy {
-        client.interceptors.toString().contains("uaIntercept")
+    override val client: OkHttpClient by lazy {
+        network.cloudflareClient.newBuilder()
+            .setRandomUserAgent(
+                preferences.getPrefUAType(),
+                preferences.getPrefCustomUA(),
+            )
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
 
-    protected val uaIntercept = object : Interceptor {
-        override fun intercept(chain: Interceptor.Chain): Response {
-            val useRandomUa = preferences.getBoolean(PREF_KEY_RANDOM_UA, false)
-            val customUa = preferences.getString(PREF_KEY_CUSTOM_UA, "")
-
-            try {
-                if (hasUaIntercept && (useRandomUa || customUa!!.isNotBlank())) {
-                    Log.i("Extension_setting", "$TITLE_RANDOM_UA or $TITLE_CUSTOM_UA option is ENABLED")
-
-                    if (customUa!!.isNotBlank() && useRandomUa.not()) {
-                        userAgent = customUa
-                    }
-
-                    if (userAgent.isNullOrBlank() && !checkedUa) {
-                        val uaResponse = chain.proceed(GET(UA_DB_URL))
-
-                        if (uaResponse.isSuccessful) {
-                            var listUserAgentString =
-                                json.decodeFromString<Map<String, List<String>>>(uaResponse.body.string())["desktop"]
-
-                            if (filterIncludeUserAgent.isNotEmpty()) {
-                                listUserAgentString = listUserAgentString!!.filter {
-                                    filterIncludeUserAgent.any { filter ->
-                                        it.contains(filter, ignoreCase = true)
-                                    }
-                                }
-                            }
-                            if (filterExcludeUserAgent.isNotEmpty()) {
-                                listUserAgentString = listUserAgentString!!.filterNot {
-                                    filterExcludeUserAgent.any { filter ->
-                                        it.contains(filter, ignoreCase = true)
-                                    }
-                                }
-                            }
-                            userAgent = listUserAgentString!!.random()
-                            checkedUa = true
-                        }
-
-                        uaResponse.close()
-                    }
-
-                    if (userAgent.isNullOrBlank().not()) {
-                        val newRequest = chain.request().newBuilder()
-                            .header("User-Agent", userAgent!!.trim())
-                            .build()
-
-                        return chain.proceed(newRequest)
-                    }
-                }
-
-                return chain.proceed(chain.request())
-            } catch (e: Exception) {
-                throw IOException(e.message)
-            }
-        }
-    }
-
-    override val client: OkHttpClient = network.cloudflareClient.newBuilder()
-        .addInterceptor(uaIntercept)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    override fun headersBuilder() = super.headersBuilder()
+        .add("Referer", "$baseUrl/")
 
     protected open val json: Json by injectLazy()
 
     /**
-     * If enabled, will remove non-manga items in search.
+     * If enabled, will attempt to remove non-manga items in popular and latest.
+     * The filter will not be used in search as the theme doesn't set the CSS class.
      * Can be disabled if the source incorrectly sets the entry types.
      */
     protected open val filterNonMangaItems = true
+
+    /**
+     * The CSS selector used to filter manga items in popular and latest
+     * if `filterNonMangaItems` is set to `true`. Can be override if needed.
+     * If the flag is set to `false`, it will be empty by default.
+     */
+    protected open val mangaEntrySelector: String by lazy {
+        if (filterNonMangaItems) ".manga" else ""
+    }
 
     /**
      * Automatically fetched genres from the source to be used in the filters.
@@ -168,8 +108,11 @@ abstract class Madara(
      */
     protected open val fetchGenres: Boolean = true
 
-    override fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("Referer", "$baseUrl/")
+    /**
+     * The path used in the URL for the manga pages. Can be
+     * changed if needed as some sites modify it to other words.
+     */
+    protected open val mangaSubString = "manga"
 
     // Popular Manga
 
@@ -179,7 +122,7 @@ abstract class Madara(
     }
 
     // exclude/filter bilibili manga from list
-    override fun popularMangaSelector() = "div.page-item-detail:not(:has(a[href*='bilibilicomics.com']))"
+    override fun popularMangaSelector() = "div.page-item-detail:not(:has(a[href*='bilibilicomics.com']))$mangaEntrySelector"
 
     open val popularMangaUrlSelector = "div.post-title a"
 
@@ -200,38 +143,15 @@ abstract class Madara(
         return manga
     }
 
-    open fun formBuilder(page: Int, popular: Boolean) = FormBody.Builder().apply {
-        add("action", "madara_load_more")
-        add("page", (page - 1).toString())
-        add("template", "madara-core/content/content-archive")
-        add("vars[orderby]", "meta_value_num")
-        add("vars[paged]", "1")
-        add("vars[posts_per_page]", "20")
-        add("vars[post_type]", "wp-manga")
-        add("vars[post_status]", "publish")
-        add("vars[meta_key]", if (popular) "_wp_manga_views" else "_latest_update")
-        add("vars[order]", "desc")
-        add("vars[sidebar]", if (popular) "full" else "right")
-        add("vars[manga_archives_item_layout]", "big_thumbnail")
-
-        if (filterNonMangaItems) {
-            add("vars[meta_query][0][key]", "_wp_manga_chapter_type")
-            add("vars[meta_query][0][value]", "manga")
-        }
-    }
-
-    open val formHeaders: Headers by lazy { headersBuilder().build() }
-
     override fun popularMangaRequest(page: Int): Request {
-        return POST(
-            "$baseUrl/wp-admin/admin-ajax.php",
-            formHeaders,
-            formBuilder(page, true).build(),
-            CacheControl.FORCE_NETWORK,
+        return GET(
+            url = "$baseUrl/$mangaSubString/${searchPage(page)}?m_orderby=views",
+            headers = headers,
+            cache = CacheControl.FORCE_NETWORK,
         )
     }
 
-    override fun popularMangaNextPageSelector(): String? = "body:not(:has(.no-posts))"
+    override fun popularMangaNextPageSelector(): String? = searchMangaNextPageSelector()
 
     // Latest Updates
 
@@ -243,7 +163,11 @@ abstract class Madara(
     }
 
     override fun latestUpdatesRequest(page: Int): Request {
-        return POST("$baseUrl/wp-admin/admin-ajax.php", formHeaders, formBuilder(page, false).build(), CacheControl.FORCE_NETWORK)
+        return GET(
+            url = "$baseUrl/$mangaSubString/${searchPage(page)}?m_orderby=latest",
+            headers = headers,
+            cache = CacheControl.FORCE_NETWORK,
+        )
     }
 
     override fun latestUpdatesNextPageSelector(): String? = popularMangaNextPageSelector()
@@ -256,41 +180,15 @@ abstract class Madara(
 
     // Search Manga
 
-    open val mangaSubString = "manga"
-
-    /**
-     * If enabled, the search will use the madara_load_more action instead of
-     * the normal page. This allows more control over the query and will permit
-     * the filtering of non-manga items such as novels or videos.
-     */
-    open val useLoadMoreSearch = true
-
-    open fun searchFormBuilder(page: Int, showOnlyManga: Boolean): FormBody.Builder = FormBody.Builder().apply {
-        add("action", "madara_load_more")
-        add("page", (page - 1).toString())
-        add("template", "madara-core/content/content-search")
-        add("vars[paged]", "1")
-        add("vars[template]", "archive")
-        add("vars[sidebar]", "right")
-        add("vars[post_type]", "wp-manga")
-        add("vars[post_status]", "publish")
-        add("vars[manga_archives_item_layout]", "big_thumbnail")
-        add("vars[posts_per_page]", "20")
-
-        if (filterNonMangaItems && showOnlyManga) {
-            add("vars[meta_query][0][key]", "_wp_manga_chapter_type")
-            add("vars[meta_query][0][value]", "manga")
-        }
-    }
-
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
-        if (query.startsWith(URL_SEARCH_PREFIX) && !useLoadMoreSearch) {
+        if (query.startsWith(URL_SEARCH_PREFIX)) {
             val mangaUrl = "$baseUrl/$mangaSubString/${query.substringAfter(URL_SEARCH_PREFIX)}"
             return client.newCall(GET(mangaUrl, headers))
                 .asObservable().map { response ->
                     MangasPage(listOf(mangaDetailsParse(response.asJsoup()).apply { url = "/$mangaSubString/${query.substringAfter(URL_SEARCH_PREFIX)}/" }), false)
                 }
         }
+
         return client.newCall(searchMangaRequest(page, query, filters))
             .asObservable().doOnNext { response ->
                 if (!response.isSuccessful) {
@@ -311,10 +209,6 @@ abstract class Madara(
     protected open fun searchPage(page: Int): String = "page/$page/"
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        if (useLoadMoreSearch) {
-            return searchLoadMoreRequest(page, query, filters)
-        }
-
         val url = "$baseUrl/${searchPage(page)}".toHttpUrlOrNull()!!.newBuilder()
         url.addQueryParameter("s", query)
         url.addQueryParameter("post_type", "wp-manga")
@@ -364,148 +258,6 @@ abstract class Madara(
             }
         }
         return GET(url.toString(), headers)
-    }
-
-    protected open fun searchLoadMoreRequest(page: Int, query: String, filters: FilterList): Request {
-        val showOnlyManga = filters.filterIsInstance<ShowOnlyMangaFilter>()
-            .firstOrNull()?.state ?: true
-
-        val formBodyBuilder = searchFormBuilder(page, showOnlyManga).apply {
-            if (query.startsWith(URL_SEARCH_PREFIX)) {
-                add("vars[name]", query.removePrefix(URL_SEARCH_PREFIX))
-
-                return@apply
-            }
-
-            add("vars[s]", query)
-
-            var metaQueryIdx = if (filterNonMangaItems && showOnlyManga) 1 else 0
-            var taxQueryIdx = 0
-            val genres = filters.filterIsInstance<GenreList>().firstOrNull()?.state
-                ?.filter { it.state }
-                ?.map { it.id }
-                .orEmpty()
-
-            filters.forEach { filter ->
-                when (filter) {
-                    is AuthorFilter -> {
-                        if (filter.state.isNotBlank()) {
-                            add("vars[tax_query][$taxQueryIdx][taxonomy]", "wp-manga-author")
-                            add("vars[tax_query][$taxQueryIdx][field]", "name")
-                            add("vars[tax_query][$taxQueryIdx][terms]", filter.state)
-
-                            taxQueryIdx++
-                        }
-                    }
-                    is ArtistFilter -> {
-                        if (filter.state.isNotBlank()) {
-                            add("vars[tax_query][$taxQueryIdx][taxonomy]", "wp-manga-artist")
-                            add("vars[tax_query][$taxQueryIdx][field]", "name")
-                            add("vars[tax_query][$taxQueryIdx][terms]", filter.state)
-
-                            taxQueryIdx++
-                        }
-                    }
-                    is YearFilter -> {
-                        if (filter.state.isNotBlank()) {
-                            add("vars[tax_query][$taxQueryIdx][taxonomy]", "wp-manga-release")
-                            add("vars[tax_query][$taxQueryIdx][field]", "name")
-                            add("vars[tax_query][$taxQueryIdx][terms]", filter.state)
-
-                            taxQueryIdx++
-                        }
-                    }
-                    is StatusFilter -> {
-                        val statuses = filter.state
-                            .filter { it.state }
-                            .map { it.id }
-
-                        if (statuses.isNotEmpty()) {
-                            add("vars[meta_query][$metaQueryIdx][key]", "_wp_manga_status")
-
-                            statuses.forEachIndexed { i, slug ->
-                                add("vars[meta_query][$metaQueryIdx][value][$i]", slug)
-                            }
-
-                            metaQueryIdx++
-                        }
-                    }
-                    is OrderByFilter -> {
-                        if (filter.state != 0) {
-                            when (filter.toUriPart()) {
-                                "latest" -> {
-                                    add("vars[orderby]", "meta_value_num")
-                                    add("vars[order]", "DESC")
-                                    add("vars[meta_key]", "_latest_update")
-                                }
-                                "alphabet" -> {
-                                    add("vars[orderby]", "post_title")
-                                    add("vars[order]", "ASC")
-                                }
-                                "rating" -> {
-                                    add("vars[orderby][query_average_reviews]", "DESC")
-                                    add("vars[orderby][query_total_reviews]", "DESC")
-                                }
-                                "trending" -> {
-                                    add("vars[orderby]", "meta_value_num")
-                                    add("vars[meta_key]", "_wp_manga_week_views_value")
-                                    add("vars[order]", "DESC")
-                                }
-                                "views" -> {
-                                    add("vars[orderby]", "meta_value_num")
-                                    add("vars[meta_key]", "_wp_manga_views")
-                                    add("vars[order]", "DESC")
-                                }
-                                else -> {
-                                    add("vars[orderby]", "date")
-                                    add("vars[order]", "DESC")
-                                }
-                            }
-                        }
-                    }
-                    is AdultContentFilter -> {
-                        if (filter.state != 0) {
-                            add("vars[meta_query][$metaQueryIdx][key]", "manga_adult_content")
-                            add(
-                                "vars[meta_query][$metaQueryIdx][compare]",
-                                if (filter.state == 1) "not exists" else "exists",
-                            )
-
-                            metaQueryIdx++
-                        }
-                    }
-                    is GenreConditionFilter -> {
-                        if (filter.state == 1 && genres.isNotEmpty()) {
-                            add("vars[tax_query][$taxQueryIdx][operation]", "AND")
-                        }
-                    }
-                    is GenreList -> {
-                        if (genres.isNotEmpty()) {
-                            add("vars[tax_query][$taxQueryIdx][taxonomy]", "wp-manga-genre")
-                            add("vars[tax_query][$taxQueryIdx][field]", "slug")
-
-                            genres.forEachIndexed { i, slug ->
-                                add("vars[tax_query][$taxQueryIdx][terms][$i]", slug)
-                            }
-
-                            taxQueryIdx++
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-
-        val searchHeaders = headersBuilder()
-            .add("X-Requested-With", "XMLHttpRequest")
-            .build()
-
-        return POST(
-            "$baseUrl/wp-admin/admin-ajax.php",
-            searchHeaders,
-            formBodyBuilder.build(),
-            CacheControl.FORCE_NETWORK,
-        )
     }
 
     protected open val authorFilterTitle: String = when (lang) {
@@ -611,11 +363,6 @@ abstract class Madara(
         else -> "Press 'Reset' to attempt to show the genres"
     }
 
-    protected open val showOnlyMangaEntriesLabel: String = when (lang) {
-        "pt-BR" -> "Mostrar somente mangás"
-        else -> "Show only manga entries"
-    }
-
     protected class AuthorFilter(title: String) : Filter.Text(title)
     protected class ArtistFilter(title: String) : Filter.Text(title)
     protected class YearFilter(title: String) : Filter.Text(title)
@@ -638,8 +385,6 @@ abstract class Madara(
     protected class GenreList(title: String, genres: List<Genre>) : Filter.Group<Genre>(title, genres)
     class Genre(name: String, val id: String = name) : Filter.CheckBox(name)
 
-    protected class ShowOnlyMangaFilter(label: String) : Filter.CheckBox(label, true)
-
     override fun getFilterList(): FilterList {
         val filters = mutableListOf(
             AuthorFilter(authorFilterTitle),
@@ -647,16 +392,12 @@ abstract class Madara(
             YearFilter(yearFilterTitle),
             StatusFilter(statusFilterTitle, getStatusList()),
             OrderByFilter(
-                orderByFilterTitle,
-                orderByFilterOptions.zip(orderByFilterOptionsValues),
-                if (useLoadMoreSearch) 5 else 0,
+                title = orderByFilterTitle,
+                options = orderByFilterOptions.zip(orderByFilterOptionsValues),
+                state = 0,
             ),
             AdultContentFilter(adultContentFilterTitle, adultContentFilterOptions),
         )
-
-        if (useLoadMoreSearch) {
-            filters.add(ShowOnlyMangaFilter(showOnlyMangaEntriesLabel))
-        }
 
         if (genresList.isNotEmpty()) {
             filters += listOf(
@@ -709,36 +450,41 @@ abstract class Madara(
         return manga
     }
 
-    override fun searchMangaNextPageSelector(): String? = when {
-        useLoadMoreSearch -> popularMangaNextPageSelector()
-        else -> "div.nav-previous, nav.navigation-ajax, a.nextpostslink"
-    }
+    override fun searchMangaNextPageSelector(): String? = "div.nav-previous, nav.navigation-ajax, a.nextpostslink"
 
     // Manga Details Parse
 
     protected val completedStatusList: Array<String> = arrayOf(
         "Completed",
         "Completo",
+        "Completado",
         "Concluído",
         "Concluido",
+        "Finalizado",
+        "Achevé",
         "Terminé",
         "Hoàn Thành",
         "مكتملة",
         "مكتمل",
+        "已完结",
     )
 
     protected val ongoingStatusList: Array<String> = arrayOf(
         "OnGoing", "Продолжается", "Updating", "Em Lançamento", "Em lançamento", "Em andamento",
-        "Em Andamento", "En cours", "Ativo", "Lançando", "Đang Tiến Hành", "Devam Ediyor",
-        "Devam ediyor", "In Corso", "In Arrivo", "مستمرة", "مستمر", "En Curso",
+        "Em Andamento", "En cours", "En Cours", "En cours de publication", "Ativo", "Lançando", "Đang Tiến Hành", "Devam Ediyor",
+        "Devam ediyor", "In Corso", "In Arrivo", "مستمرة", "مستمر", "En Curso", "En curso", "Emision",
+        "Curso", "En marcha", "Publicandose", "En emision", "连载中",
     )
 
     protected val hiatusStatusList: Array<String> = arrayOf(
         "On Hold",
+        "Pausado",
+        "En espera",
     )
 
     protected val canceledStatusList: Array<String> = arrayOf(
         "Canceled",
+        "Cancelado",
     )
 
     override fun mangaDetailsParse(document: Document): SManga {
@@ -811,7 +557,17 @@ abstract class Madara(
                 }
             }
 
-            manga.genre = genres.toList().joinToString(", ") { it.capitalize(Locale.ROOT) }
+            manga.genre = genres.toList().joinToString(", ") { genre ->
+                genre.replaceFirstChar {
+                    if (it.isLowerCase()) {
+                        it.titlecase(
+                            Locale.ROOT,
+                        )
+                    } else {
+                        it.toString()
+                    }
+                }
+            }
 
             // add alternative name to manga description
             document.select(altNameSelector).firstOrNull()?.ownText()?.let {
@@ -1004,6 +760,9 @@ abstract class Madara(
             WordSet("ago", "atrás", "önce", "قبل").endsWith(date) -> {
                 parseRelativeDate(date)
             }
+            WordSet("hace").startsWith(date) -> {
+                parseRelativeDate(date)
+            }
             date.contains(Regex("""\d(st|nd|rd|th)""")) -> {
                 // Clean date (e.g. 5th December 2019 to 5 December 2019) before parsing it
                 date.split(" ").map {
@@ -1026,13 +785,13 @@ abstract class Madara(
         val cal = Calendar.getInstance()
 
         return when {
-            WordSet("hari", "gün", "jour", "día", "dia", "day", "วัน", "ngày", "giorni", "أيام").anyWordIn(date) -> cal.apply { add(Calendar.DAY_OF_MONTH, -number) }.timeInMillis
-            WordSet("jam", "saat", "heure", "hora", "hour", "ชั่วโมง", "giờ", "ore", "ساعة").anyWordIn(date) -> cal.apply { add(Calendar.HOUR, -number) }.timeInMillis
+            WordSet("hari", "gün", "jour", "día", "dia", "day", "วัน", "ngày", "giorni", "أيام", "天").anyWordIn(date) -> cal.apply { add(Calendar.DAY_OF_MONTH, -number) }.timeInMillis
+            WordSet("jam", "saat", "heure", "hora", "hour", "ชั่วโมง", "giờ", "ore", "ساعة", "小时").anyWordIn(date) -> cal.apply { add(Calendar.HOUR, -number) }.timeInMillis
             WordSet("menit", "dakika", "min", "minute", "minuto", "นาที", "دقائق").anyWordIn(date) -> cal.apply { add(Calendar.MINUTE, -number) }.timeInMillis
             WordSet("detik", "segundo", "second", "วินาที").anyWordIn(date) -> cal.apply { add(Calendar.SECOND, -number) }.timeInMillis
-            WordSet("week").anyWordIn(date) -> cal.apply { add(Calendar.DAY_OF_MONTH, -number * 7) }.timeInMillis
-            WordSet("month").anyWordIn(date) -> cal.apply { add(Calendar.MONTH, -number) }.timeInMillis
-            WordSet("year").anyWordIn(date) -> cal.apply { add(Calendar.YEAR, -number) }.timeInMillis
+            WordSet("week", "semana").anyWordIn(date) -> cal.apply { add(Calendar.DAY_OF_MONTH, -number * 7) }.timeInMillis
+            WordSet("month", "mes").anyWordIn(date) -> cal.apply { add(Calendar.MONTH, -number) }.timeInMillis
+            WordSet("year", "año").anyWordIn(date) -> cal.apply { add(Calendar.YEAR, -number) }.timeInMillis
             else -> 0
         }
     }
@@ -1046,17 +805,37 @@ abstract class Madara(
 
     open val pageListParseSelector = "div.page-break, li.blocks-gallery-item, .reading-content .text-left:not(:has(.blocks-gallery-item)) img"
 
+    open val chapterProtectorSelector = "#chapter-protector-data"
+
     override fun pageListParse(document: Document): List<Page> {
         countViews(document)
 
-        return document.select(pageListParseSelector).mapIndexed { index, element ->
-            Page(
-                index,
-                document.location(),
-                element.select("img").first()?.let {
-                    it.absUrl(if (it.hasAttr("data-src")) "data-src" else "src")
-                },
-            )
+        val chapterProtector = document.selectFirst(chapterProtectorSelector)
+            ?: return document.select(pageListParseSelector).mapIndexed { index, element ->
+                val imageUrl = element.selectFirst("img")?.let { imageFromElement(it) }
+                Page(index, document.location(), imageUrl)
+            }
+        val chapterProtectorHtml = chapterProtector.html()
+        val password = chapterProtectorHtml
+            .substringAfter("wpmangaprotectornonce='")
+            .substringBefore("';")
+        val chapterData = json.parseToJsonElement(
+            chapterProtectorHtml
+                .substringAfter("chapter_data='")
+                .substringBefore("';")
+                .replace("\\/", "/"),
+        ).jsonObject
+
+        val unsaltedCiphertext = Base64.decode(chapterData["ct"]!!.jsonPrimitive.content, Base64.DEFAULT)
+        val salt = chapterData["s"]!!.jsonPrimitive.content.decodeHex()
+        val ciphertext = SALTED + salt + unsaltedCiphertext
+
+        val rawImgArray = CryptoAES.decrypt(Base64.encodeToString(ciphertext, Base64.DEFAULT), password)
+        val imgArrayString = json.parseToJsonElement(rawImgArray).jsonPrimitive.content
+        val imgArray = json.parseToJsonElement(imgArrayString).jsonArray
+
+        return imgArray.mapIndexed { idx, it ->
+            Page(idx, document.location(), it.jsonPrimitive.content)
         }
     }
 
@@ -1162,70 +941,22 @@ abstract class Madara(
             }
     }
 
+    // https://stackoverflow.com/a/66614516
+    private fun String.decodeHex(): ByteArray {
+        check(length % 2 == 0) { "Must have an even length" }
+
+        return chunked(2)
+            .map { it.toInt(16).toByte() }
+            .toByteArray()
+    }
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        if (hasUaIntercept) {
-            val prefUserAgent = SwitchPreferenceCompat(screen.context).apply {
-                key = PREF_KEY_RANDOM_UA
-                title = TITLE_RANDOM_UA
-                summary = if (preferences.getBoolean(PREF_KEY_RANDOM_UA, useRandomUserAgentByDefault)) userAgent else ""
-                setDefaultValue(useRandomUserAgentByDefault)
-
-                setOnPreferenceChangeListener { _, newValue ->
-                    val useRandomUa = newValue as Boolean
-                    preferences.edit().putBoolean(PREF_KEY_RANDOM_UA, useRandomUa).apply()
-                    if (!useRandomUa) {
-                        Toast.makeText(screen.context, RESTART_APP_STRING, Toast.LENGTH_LONG).show()
-                    } else {
-                        userAgent = null
-                        if (preferences.getString(PREF_KEY_CUSTOM_UA, "").isNullOrBlank().not()) {
-                            Toast.makeText(screen.context, SUMMARY_CLEANING_CUSTOM_UA, Toast.LENGTH_LONG).show()
-                        }
-                    }
-
-                    preferences.edit().putString(PREF_KEY_CUSTOM_UA, "").apply()
-                    // prefCustomUserAgent.summary = ""
-                    true
-                }
-            }
-            screen.addPreference(prefUserAgent)
-
-            val prefCustomUserAgent = EditTextPreference(screen.context).apply {
-                key = PREF_KEY_CUSTOM_UA
-                title = TITLE_CUSTOM_UA
-                summary = preferences.getString(PREF_KEY_CUSTOM_UA, "")!!.trim()
-                setOnPreferenceChangeListener { _, newValue ->
-                    val customUa = newValue as String
-                    preferences.edit().putString(PREF_KEY_CUSTOM_UA, customUa).apply()
-                    if (customUa.isBlank()) {
-                        Toast.makeText(screen.context, RESTART_APP_STRING, Toast.LENGTH_LONG).show()
-                    } else {
-                        userAgent = null
-                    }
-                    summary = customUa.trim()
-                    prefUserAgent.summary = ""
-                    prefUserAgent.isChecked = false
-                    true
-                }
-            }
-            screen.addPreference(prefCustomUserAgent)
-        } else {
-            Toast.makeText(screen.context, DOESNOT_SUPPORT_STRING, Toast.LENGTH_LONG).show()
-        }
+        addRandomUAPreferenceToScreen(screen)
     }
 
     companion object {
-        const val TITLE_RANDOM_UA = "Use Random Latest User-Agent"
-        const val PREF_KEY_RANDOM_UA = "pref_key_random_ua"
-
-        const val TITLE_CUSTOM_UA = "Custom User-Agent"
-        const val PREF_KEY_CUSTOM_UA = "pref_key_custom_ua"
-
-        const val SUMMARY_CLEANING_CUSTOM_UA = "$TITLE_CUSTOM_UA cleared."
-
-        const val RESTART_APP_STRING = "Restart Tachiyomi to apply new setting."
-        const val DOESNOT_SUPPORT_STRING = "This extension doesn't support User-Agent options."
         const val URL_SEARCH_PREFIX = "slug:"
-        private const val UA_DB_URL = "https://tachiyomiorg.github.io/user-agents/user-agents.json"
+        val SALTED = "Salted__".toByteArray(Charsets.UTF_8)
     }
 }
 

@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.extension.all.mangadex
 
+import eu.kanade.tachiyomi.lib.i18n.Intl
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.time.Duration.Companion.minutes
 
 object MDConstants {
 
@@ -31,7 +33,7 @@ object MDConstants {
     const val atHomePostUrl = "https://api.mangadex.network/report"
     val whitespaceRegex = "\\s".toRegex()
 
-    const val mdAtHomeTokenLifespan = 5 * 60 * 1000
+    val mdAtHomeTokenLifespan = 5.minutes.inWholeMilliseconds
 
     val dateFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss+SSS", Locale.US)
         .apply { timeZone = TimeZone.getTimeZone("UTC") }
@@ -49,8 +51,8 @@ object MDConstants {
         return "${coverQualityPref}_$dexLang"
     }
 
-    fun getCoverQualityPreferenceEntries(intl: MangaDexIntl) =
-        arrayOf(intl.coverQualityOriginal, intl.coverQualityMedium, intl.coverQualityLow)
+    fun getCoverQualityPreferenceEntries(intl: Intl) =
+        arrayOf(intl["cover_quality_original"], intl["cover_quality_medium"], intl["cover_quality_low"])
 
     fun getCoverQualityPreferenceEntryValues() = arrayOf("", ".512.jpg", ".256.jpg")
 
@@ -74,6 +76,12 @@ object MDConstants {
     const val contentRatingPrefValErotica = "erotica"
     const val contentRatingPrefValPornographic = "pornographic"
     val contentRatingPrefDefaults = setOf(contentRatingPrefValSafe, contentRatingPrefValSuggestive)
+    val allContentRatings = setOf(
+        contentRatingPrefValSafe,
+        contentRatingPrefValSuggestive,
+        contentRatingPrefValErotica,
+        contentRatingPrefValPornographic,
+    )
 
     fun getContentRatingPrefKey(dexLang: String): String {
         return "${contentRatingPref}_$dexLang"
@@ -125,6 +133,11 @@ object MDConstants {
         return "${tryUsingFirstVolumeCoverPref}_$dexLang"
     }
 
+    private const val altTitlesInDescPref = "altTitlesInDesc"
+    fun getAltTitlesInDescPrefKey(dexLang: String): String {
+        return "${altTitlesInDescPref}_$dexLang"
+    }
+
     private const val tagGroupContent = "content"
     private const val tagGroupFormat = "format"
     private const val tagGroupGenre = "genre"
@@ -133,4 +146,11 @@ object MDConstants {
 
     const val tagAnthologyUuid = "51d83883-4103-437c-b4b1-731cb73d786c"
     const val tagOneShotUuid = "0234a31e-a729-4e28-9d6a-3f87c4966b9e"
+
+    val romanizedLangCodes = mapOf(
+        MangaDexIntl.JAPANESE to "ja-ro",
+        MangaDexIntl.KOREAN to "ko-ro",
+        MangaDexIntl.CHINESE to "zh-ro",
+        "zh-hk" to "zh-ro",
+    )
 }
